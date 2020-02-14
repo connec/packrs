@@ -2,10 +2,16 @@
 
 //! Parsing expression grammar library.
 //!
-//! See [`Expression`], which represents valid parsing expression grammar expressions, and [`eval`],
-//! which can evaluate them against a string.
+//! Currently there are two implementations of PEG expressions:
 //!
-//! [`Expression`]: expression/enum.Expression.html
-//! [`eval`]: expression/fn.eval.html
+//! - [`combinators`] implements PEG expressions as parser combinators.
+//! - [`expressions`] implements PEG expressions as an enum.
+//!
+//! Both are currently only capable of *matching* a given `&str` input, and cannot make use of the
+//! structural information discovered during parsing.
+//!
+//! [`combinators`]: combinators/index.html
+//! [`expressions`]: expressions/index.html
 
+pub mod combinators;
 pub mod expression;
