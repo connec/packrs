@@ -5,7 +5,7 @@
 //! recursively evaluate the expressions in the tree against the input.
 //!
 //! ```
-//! use packrs::expression::{parse, Expression::*};
+//! use packrs::expression::Expression::*;
 //!
 //! let string = OrderedChoice(
 //!     &Sequence(
@@ -31,7 +31,7 @@
 //! );
 //!
 //! assert_eq!(
-//!     parse("'hello \\' world'", &string),
+//!     string.parse("'hello \\' world'"),
 //!     Ok("'hello \\' world'"),
 //! );
 //! ```
@@ -39,6 +39,8 @@
 //! [`Expression`]: enum.Expression.html
 
 use Expression::*;
+
+type Result<'a> = std::result::Result<(&'a str, &'a str), String>;
 
 /// A PEG expression.
 ///
@@ -88,94 +90,124 @@ pub enum Expression<'a> {
     NotPredicate(&'a Expression<'a>),
 }
 
-/// Evaluate a given `Expression` against a given input string.
-///
-/// This will work rescursively to match the expression and evaluate any sub-expressions. If there
-/// is any unconsumed input once the expression has been evaluated then an "expected end of input"
-/// error is returned.
-///
-/// **Note:** this implementation will likely be vulnerable to stack overflows, unless LLVM is very
-pub fn parse<'a>(input: &'a str, expression: &'a Expression) -> Result<&'a str, String> {
-    let (output, remainder) = eval(input, expression)?;
-    if remainder.is_empty() {
-        Ok(output)
-    } else {
-        Err("expected end of input".to_string())
+impl Expression<'_> {
+    /// Evaluate a given `Expression` against a given input string.
+    ///
+    /// This will work rescursively to match the expression and evaluate any sub-expressions. If there
+    /// is any unconsumed input once the expression has been evaluated then an "expected end of input"
+    /// error is returned.
+    ///
+    /// **Note:** this implementation will likely be vulnerable to stack overflows, unless LLVM is very
+    pub fn parse<'a>(&self, input: &'a str) -> std::result::Result<&'a str, String> {
+        let (output, remainder) = self.eval(input)?;
+        if remainder.is_empty() {
+            Ok(output)
+        } else {
+            Err("expected end of input".to_string())
+        }
+    }
+
+    /// Evaluate a given `Expression` against a given input string.
+    ///
+    /// This will work rescursively to match the expression and evaluate any sub-expressions. Once the
+    /// terminals are reached, the outputs will propagate back up the stack until the overall result is
+    /// worked out.
+    ///
+    /// **Note:** this implementation will likely be vulnerable to stack overflows, unless LLVM is very
+    /// clever.
+    fn eval<'a>(&self, input: &'a str) -> Result<'a> {
+        match self {
+            Empty => eval_empty(input),
+            Any => eval_any(input),
+            Terminal(char) => eval_terminal(*char, input),
+            Sequence(expr1, expr2) => eval_sequence(expr1, expr2, input),
+            OrderedChoice(expr1, expr2) => eval_ordered_choice(expr1, expr2, input),
+            ZeroOrMore(expr) => eval_zero_or_more(expr, input),
+            OneOrMore(expr) => eval_one_or_more(expr, input),
+            Optional(expr) => eval_optional(expr, input),
+            AndPredicate(expr) => eval_and_predicate(expr, input),
+            NotPredicate(expr) => eval_not_predicate(expr, input),
+        }
     }
 }
 
-/// Evaluate a given `Expression` against a given input string.
-///
-/// This will work rescursively to match the expression and evaluate any sub-expressions. Once the
-/// terminals are reached, the outputs will propagate back up the stack until the overall result is
-/// worked out.
-///
-/// **Note:** this implementation will likely be vulnerable to stack overflows, unless LLVM is very
-/// clever.
-fn eval<'a>(input: &'a str, expression: &Expression) -> Result<(&'a str, &'a str), String> {
-    match expression {
-        Empty => Ok(("", input)),
-        Any => {
-            let mut chars = input.char_indices();
-            let _ = chars
-                .next()
-                .ok_or_else(|| "unexpected end of input".to_string())?;
-            chars
-                .next()
-                .map_or_else(|| Ok((input, "")), |(idx, _)| Ok(input.split_at(idx)))
-        }
-        Terminal(char) => {
-            let mut chars = input.char_indices();
-            let (_, actual) = chars
-                .next()
-                .ok_or_else(|| "unexpected end of input".to_string())?;
-            if actual == *char {
-                chars
-                    .next()
-                    .map_or_else(|| Ok((input, "")), |(idx, _)| Ok(input.split_at(idx)))
-            } else {
-                Err(format!("expected '{}'", char))
-            }
-        }
-        Sequence(expr1, expr2) => {
-            let (output1, input2) = eval(input, expr1)?;
-            let (output2, _remainder) = eval(input2, expr2)?;
-            Ok(input.split_at(output1.len() + output2.len()))
-        }
-        OrderedChoice(expr1, expr2) => eval(input, expr1).or_else(|mut error| {
-            eval(input, expr2).map_err(|error2| {
-                error.push_str(" or ");
-                error.push_str(&error2);
-                error
-            })
-        }),
-        ZeroOrMore(expr) => {
-            let mut remaining = input;
-            while let Ok((_, remaining_)) = eval(remaining, expr) {
-                remaining = remaining_;
-            }
-            Ok(input.split_at(input.len() - remaining.len()))
-        }
-        OneOrMore(expr) => {
-            let (_, mut remaining) = eval(input, expr)?;
-            while let Ok((_, remaining_)) = eval(remaining, expr) {
-                remaining = remaining_;
-            }
-            Ok(input.split_at(input.len() - remaining.len()))
-        }
-        Optional(expr) => eval(input, expr).or_else(|_| Ok(("", input))),
-        AndPredicate(expr) => {
-            eval(input, expr)?;
-            Ok(("", input))
-        }
-        NotPredicate(expr) => eval(input, expr)
-            .map_or_else(|_| Ok(("", input)), |_| Err("unexpected input".to_string())),
+fn eval_empty(input: &str) -> Result {
+    Ok(("", input))
+}
+
+fn eval_any(input: &str) -> Result {
+    let mut chars = input.char_indices();
+    let _ = chars
+        .next()
+        .ok_or_else(|| "unexpected end of input".to_string())?;
+    chars
+        .next()
+        .map_or_else(|| Ok((input, "")), |(idx, _)| Ok(input.split_at(idx)))
+}
+
+fn eval_terminal(char: char, input: &str) -> Result {
+    let mut chars = input.char_indices();
+    let (_, actual) = chars
+        .next()
+        .ok_or_else(|| "unexpected end of input".to_string())?;
+    if actual == char {
+        chars
+            .next()
+            .map_or_else(|| Ok((input, "")), |(idx, _)| Ok(input.split_at(idx)))
+    } else {
+        Err(format!("expected '{}'", char))
     }
+}
+
+fn eval_sequence<'a>(expr1: &Expression, expr2: &Expression, input: &'a str) -> Result<'a> {
+    let (output1, input2) = expr1.eval(input)?;
+    let (output2, _remainder) = expr2.eval(input2)?;
+    Ok(input.split_at(output1.len() + output2.len()))
+}
+
+fn eval_ordered_choice<'a>(expr1: &Expression, expr2: &Expression, input: &'a str) -> Result<'a> {
+    expr1.eval(input).or_else(|mut error| {
+        expr2.eval(input).map_err(|error2| {
+            error.push_str(" or ");
+            error.push_str(&error2);
+            error
+        })
+    })
+}
+
+fn eval_zero_or_more<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
+    let mut remaining = input;
+    while let Ok((_, remaining_)) = expr.eval(remaining) {
+        remaining = remaining_;
+    }
+    Ok(input.split_at(input.len() - remaining.len()))
+}
+
+fn eval_one_or_more<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
+    let (_, mut remaining) = expr.eval(input)?;
+    while let Ok((_, remaining_)) = expr.eval(remaining) {
+        remaining = remaining_;
+    }
+    Ok(input.split_at(input.len() - remaining.len()))
+}
+
+fn eval_optional<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
+    expr.eval(input).or_else(|_| Ok(("", input)))
+}
+
+fn eval_and_predicate<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
+    expr.eval(input)?;
+    Ok(("", input))
+}
+
+fn eval_not_predicate<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
+    expr.eval(input)
+        .map_or_else(|_| Ok(("", input)), |_| Err("unexpected input".to_string()))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{eval, parse, Expression::*};
+    use super::Expression::*;
 
     #[test]
     fn construct_empty() {
@@ -185,7 +217,7 @@ mod tests {
     #[test]
     fn eval_empty() {
         let expr = Empty;
-        assert_eq!(eval("", &expr), Ok(("", "")));
+        assert_eq!(expr.eval(""), Ok(("", "")));
     }
 
     #[test]
@@ -196,13 +228,13 @@ mod tests {
     #[test]
     fn eval_any_ok() {
         let expr = Any;
-        assert_eq!(eval("a", &expr), Ok(("a", "")));
+        assert_eq!(expr.eval("a"), Ok(("a", "")));
     }
 
     #[test]
     fn eval_any_err() {
         let expr = Any;
-        assert_eq!(eval("", &expr), Err("unexpected end of input".to_string()));
+        assert_eq!(expr.eval(""), Err("unexpected end of input".to_string()));
     }
 
     #[test]
@@ -213,13 +245,13 @@ mod tests {
     #[test]
     fn eval_terminal_ok() {
         let expr = Terminal('a');
-        assert_eq!(eval("a", &expr), Ok(("a", "")));
+        assert_eq!(expr.eval("a"), Ok(("a", "")));
     }
 
     #[test]
     fn eval_terminal_err() {
         let expr = Terminal('a');
-        assert_eq!(eval("", &expr), Err("unexpected end of input".to_string()));
+        assert_eq!(expr.eval(""), Err("unexpected end of input".to_string()));
     }
 
     #[test]
@@ -234,7 +266,7 @@ mod tests {
         let a = Terminal('a');
         let b = Terminal('b');
         let expr = Sequence(&a, &b);
-        assert_eq!(eval("ab", &expr), Ok(("ab", "")));
+        assert_eq!(expr.eval("ab"), Ok(("ab", "")));
     }
 
     #[test]
@@ -242,7 +274,7 @@ mod tests {
         let a = Terminal('a');
         let b = Terminal('b');
         let expr = Sequence(&a, &b);
-        assert_eq!(eval("bb", &expr), Err("expected 'a'".to_string()));
+        assert_eq!(expr.eval("bb"), Err("expected 'a'".to_string()));
     }
 
     #[test]
@@ -250,7 +282,7 @@ mod tests {
         let a = Terminal('a');
         let b = Terminal('b');
         let expr = Sequence(&a, &b);
-        assert_eq!(eval("aa", &expr), Err("expected 'b'".to_string()));
+        assert_eq!(expr.eval("aa"), Err("expected 'b'".to_string()));
     }
 
     #[test]
@@ -265,7 +297,7 @@ mod tests {
         let a = Terminal('a');
         let b = Terminal('b');
         let expr = OrderedChoice(&a, &b);
-        assert_eq!(eval("ab", &expr), Ok(("a", "b")));
+        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
     }
 
     #[test]
@@ -273,7 +305,7 @@ mod tests {
         let a = Terminal('a');
         let b = Terminal('b');
         let expr = OrderedChoice(&a, &b);
-        assert_eq!(eval("ba", &expr), Ok(("b", "a")));
+        assert_eq!(expr.eval("ba"), Ok(("b", "a")));
     }
 
     #[test]
@@ -282,7 +314,7 @@ mod tests {
         let b = Terminal('b');
         let expr = OrderedChoice(&a, &b);
         assert_eq!(
-            eval("c", &expr),
+            expr.eval("c"),
             Err("expected 'a' or expected 'b'".to_string())
         );
     }
@@ -297,28 +329,28 @@ mod tests {
     fn eval_zero_or_more_ok_empty() {
         let a = Terminal('a');
         let expr = ZeroOrMore(&a);
-        assert_eq!(eval("", &expr), Ok(("", "")));
+        assert_eq!(expr.eval(""), Ok(("", "")));
     }
 
     #[test]
     fn eval_zero_or_more_ok_no_match() {
         let a = Terminal('a');
         let expr = ZeroOrMore(&a);
-        assert_eq!(eval("b", &expr), Ok(("", "b")));
+        assert_eq!(expr.eval("b"), Ok(("", "b")));
     }
 
     #[test]
     fn eval_zero_or_more_ok_one() {
         let a = Terminal('a');
         let expr = ZeroOrMore(&a);
-        assert_eq!(eval("ab", &expr), Ok(("a", "b")));
+        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
     }
 
     #[test]
     fn eval_zero_or_more_ok_more() {
         let a = Terminal('a');
         let expr = ZeroOrMore(&a);
-        assert_eq!(eval("aaab", &expr), Ok(("aaa", "b")));
+        assert_eq!(expr.eval("aaab"), Ok(("aaa", "b")));
     }
 
     #[test]
@@ -331,28 +363,28 @@ mod tests {
     fn eval_one_or_more_err_empty() {
         let a = Terminal('a');
         let expr = OneOrMore(&a);
-        assert_eq!(eval("", &expr), Err("unexpected end of input".to_string()));
+        assert_eq!(expr.eval(""), Err("unexpected end of input".to_string()));
     }
 
     #[test]
     fn eval_one_or_more_err_no_match() {
         let a = Terminal('a');
         let expr = OneOrMore(&a);
-        assert_eq!(eval("b", &expr), Err("expected 'a'".to_string()));
+        assert_eq!(expr.eval("b"), Err("expected 'a'".to_string()));
     }
 
     #[test]
     fn eval_one_or_more_ok_one() {
         let a = Terminal('a');
         let expr = OneOrMore(&a);
-        assert_eq!(eval("ab", &expr), Ok(("a", "b")));
+        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
     }
 
     #[test]
     fn eval_one_or_more_ok_more() {
         let a = Terminal('a');
         let expr = OneOrMore(&a);
-        assert_eq!(eval("aaab", &expr), Ok(("aaa", "b")));
+        assert_eq!(expr.eval("aaab"), Ok(("aaa", "b")));
     }
 
     #[test]
@@ -365,21 +397,21 @@ mod tests {
     fn eval_optional_ok_empty() {
         let a = Terminal('a');
         let expr = Optional(&a);
-        assert_eq!(eval("", &expr), Ok(("", "")));
+        assert_eq!(expr.eval(""), Ok(("", "")));
     }
 
     #[test]
     fn eval_optional_ok_no_match() {
         let a = Terminal('a');
         let expr = Optional(&a);
-        assert_eq!(eval("b", &expr), Ok(("", "b")));
+        assert_eq!(expr.eval("b"), Ok(("", "b")));
     }
 
     #[test]
     fn eval_optional_ok_match() {
         let a = Terminal('a');
         let expr = Optional(&a);
-        assert_eq!(eval("ab", &expr), Ok(("a", "b")));
+        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
     }
 
     #[test]
@@ -392,14 +424,14 @@ mod tests {
     fn eval_and_predicate_ok() {
         let a = Terminal('a');
         let expr = AndPredicate(&a);
-        assert_eq!(eval("a", &expr), Ok(("", "a")));
+        assert_eq!(expr.eval("a"), Ok(("", "a")));
     }
 
     #[test]
     fn eval_and_predicate_err() {
         let a = Terminal('a');
         let expr = AndPredicate(&a);
-        assert_eq!(eval("b", &expr), Err("expected 'a'".to_string()));
+        assert_eq!(expr.eval("b"), Err("expected 'a'".to_string()));
     }
 
     #[test]
@@ -412,32 +444,32 @@ mod tests {
     fn eval_not_predicate_ok() {
         let a = Terminal('a');
         let expr = NotPredicate(&a);
-        assert_eq!(eval("b", &expr), Ok(("", "b")));
+        assert_eq!(expr.eval("b"), Ok(("", "b")));
     }
 
     #[test]
     fn eval_not_predicate_err() {
         let a = Terminal('a');
         let expr = NotPredicate(&a);
-        assert_eq!(eval("a", &expr), Err("unexpected input".to_string()));
+        assert_eq!(expr.eval("a"), Err("unexpected input".to_string()));
     }
 
     #[test]
     fn parse_err_no_match() {
         let a = Terminal('a');
-        assert_eq!(parse("b", &a), Err("expected 'a'".to_string()));
+        assert_eq!(a.parse("b"), Err("expected 'a'".to_string()));
     }
 
     #[test]
     fn parse_err_match_and_remainder() {
         let a = Terminal('a');
-        assert_eq!(parse("ab", &a), Err("expected end of input".to_string()));
+        assert_eq!(a.parse("ab"), Err("expected end of input".to_string()));
     }
 
     #[test]
     fn parse_ok_match_no_remainder() {
         let a = Terminal('a');
-        assert_eq!(parse("a", &a), Ok("a"));
+        assert_eq!(a.parse("a"), Ok("a"));
     }
 
     #[test]
@@ -465,14 +497,14 @@ mod tests {
             ),
         );
 
-        assert_eq!(eval("'hello world'", &expr), Ok(("'hello world'", "")));
-        assert_eq!(eval("'hello\\''", &expr), Ok(("'hello\\''", "")));
-        assert_eq!(eval("'hello\\'world'", &expr), Ok(("'hello\\'world'", "")));
+        assert_eq!(expr.eval("'hello world'"), Ok(("'hello world'", "")));
+        assert_eq!(expr.eval("'hello\\''"), Ok(("'hello\\''", "")));
+        assert_eq!(expr.eval("'hello\\'world'"), Ok(("'hello\\'world'", "")));
 
-        assert_eq!(eval("\"hello world\"", &expr), Ok(("\"hello world\"", "")));
-        assert_eq!(eval("\"hello\\\"\"", &expr), Ok(("\"hello\\\"\"", "")));
+        assert_eq!(expr.eval("\"hello world\""), Ok(("\"hello world\"", "")));
+        assert_eq!(expr.eval("\"hello\\\"\""), Ok(("\"hello\\\"\"", "")));
         assert_eq!(
-            eval("\"hello\\\"world\"", &expr),
+            expr.eval("\"hello\\\"world\""),
             Ok(("\"hello\\\"world\"", ""))
         );
     }
