@@ -14,4 +14,5 @@
 //! [`expressions`]: expressions/index.html
 
 pub mod combinators;
+pub mod combinators2;
 pub mod expression;
