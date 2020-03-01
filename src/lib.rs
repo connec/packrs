@@ -16,3 +16,4 @@
 pub mod combinators;
 pub mod combinators2;
 pub mod expression;
+pub mod parser;
