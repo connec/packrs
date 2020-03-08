@@ -13,7 +13,8 @@
 //! [`combinators`]: combinators/index.html
 //! [`expressions`]: expressions/index.html
 
-pub mod combinators;
-pub mod combinators2;
-pub mod expression;
-pub mod parser;
+mod expression;
+mod parser;
+mod span;
+
+pub use span::Span;

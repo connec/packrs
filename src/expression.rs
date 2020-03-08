@@ -1,511 +1,139 @@
-//! Enum-based PEG expression library.
+//! Parsing expressions based on a [`Parser`] trait.
 //!
-//! This module centres around the [`Expression`] enum, which can be used to define parse trees.
-//! Constructed parse trees can then be given to [`parse`], along with an input `&str`, which will
-//! recursively evaluate the expressions in the tree against the input.
-//!
-//! ```
-//! use packrs::expression::Expression::*;
-//!
-//! let string = OrderedChoice(
-//!     &Sequence(
-//!         &Terminal('\''),
-//!         &Sequence(
-//!             &ZeroOrMore(&Sequence(
-//!                 &OrderedChoice(&Terminal('\\'), &NotPredicate(&Terminal('\''))),
-//!                 &Any,
-//!             )),
-//!             &Terminal('\''),
-//!         ),
-//!     ),
-//!     &Sequence(
-//!         &Terminal('"'),
-//!         &Sequence(
-//!             &ZeroOrMore(&Sequence(
-//!                 &OrderedChoice(&Terminal('\\'), &NotPredicate(&Terminal('"'))),
-//!                 &Any,
-//!             )),
-//!             &Terminal('"'),
-//!         ),
-//!     ),
-//! );
-//!
-//! assert_eq!(
-//!     string.parse("'hello \\' world'"),
-//!     Ok("'hello \\' world'"),
-//! );
-//! ```
-//!
-//! [`Expression`]: enum.Expression.html
+//! [`Parser`]: trait.Parser.html
 
-use Expression::*;
-
-type Result<'a> = std::result::Result<(&'a str, &'a str), String>;
-
-/// A PEG expression.
-///
-/// Each variant, apart from the terminals `Empty` and `Terminal`, contains references to
-/// sub-expressions.
-///
-/// See each variant's documentation for how the expression should be evaluated.
-pub enum Expression<'a> {
-    /// Always matches, regardless of the input (even if empty). Outputs an empty string.
-    Empty,
-
-    /// Matches any character and returns it as output. Fails if the input is empty, with
-    /// 'unexpected end of input'.
-    Any,
-
-    /// Matches the given `char` and returns it as output, or fails with "expected '<char>'".
-    Terminal(char),
-
-    /// Matches the two given sub-expressions in sequence and concatenates their output. If any
-    /// sub-expression fails, the whole sequence expression fails with that error.
-    Sequence(&'a Expression<'a>, &'a Expression<'a>),
-
-    /// Matches the the given sub-expressions one after the other, returning the first successful
-    /// result. If neither sub-expression matches the ordered choice fails with the two expression's
-    /// errors joined by " or ".
-    OrderedChoice(&'a Expression<'a>, &'a Expression<'a>),
-
-    /// Matches the given sub-expression zero or more times. Outputs the sub-expression outputs
-    /// concatenated together. Like `Empty`, this can't fail.
-    ZeroOrMore(&'a Expression<'a>),
-
-    /// Matches the given sub-expression one or more times. Outputs the sub-expression outputs
-    /// concatenated together. If the first attempt to match the sub-expression fails, this failure
-    /// is returned.
-    OneOrMore(&'a Expression<'a>),
-
-    /// Matches the given sub-expression, or else succeeds, outputing an empty string.
-    Optional(&'a Expression<'a>),
-
-    /// Matches the given sub-expression without consuming any input. If the sub-expression fails,
-    /// the failure is returned.
-    AndPredicate(&'a Expression<'a>),
-
-    /// Matches the given sub-expression without consuming any input. If the sub-expression
-    /// succeeds, a failure is returned. If the sub-expression fails, the not-predicate expression
-    /// succeeds without consuming.
-    NotPredicate(&'a Expression<'a>),
-}
-
-impl Expression<'_> {
-    /// Evaluate a given `Expression` against a given input string.
-    ///
-    /// This will work rescursively to match the expression and evaluate any sub-expressions. If there
-    /// is any unconsumed input once the expression has been evaluated then an "expected end of input"
-    /// error is returned.
-    ///
-    /// **Note:** this implementation will likely be vulnerable to stack overflows, unless LLVM is very
-    pub fn parse<'a>(&self, input: &'a str) -> std::result::Result<&'a str, String> {
-        let (output, remainder) = self.eval(input)?;
-        if remainder.is_empty() {
-            Ok(output)
-        } else {
-            Err("expected end of input".to_string())
-        }
-    }
-
-    /// Evaluate a given `Expression` against a given input string.
-    ///
-    /// This will work rescursively to match the expression and evaluate any sub-expressions. Once the
-    /// terminals are reached, the outputs will propagate back up the stack until the overall result is
-    /// worked out.
-    ///
-    /// **Note:** this implementation will likely be vulnerable to stack overflows, unless LLVM is very
-    /// clever.
-    fn eval<'a>(&self, input: &'a str) -> Result<'a> {
-        match self {
-            Empty => eval_empty(input),
-            Any => eval_any(input),
-            Terminal(char) => eval_terminal(*char, input),
-            Sequence(expr1, expr2) => eval_sequence(expr1, expr2, input),
-            OrderedChoice(expr1, expr2) => eval_ordered_choice(expr1, expr2, input),
-            ZeroOrMore(expr) => eval_zero_or_more(expr, input),
-            OneOrMore(expr) => eval_one_or_more(expr, input),
-            Optional(expr) => eval_optional(expr, input),
-            AndPredicate(expr) => eval_and_predicate(expr, input),
-            NotPredicate(expr) => eval_not_predicate(expr, input),
-        }
-    }
-}
-
-fn eval_empty(input: &str) -> Result {
-    Ok(("", input))
-}
-
-fn eval_any(input: &str) -> Result {
-    let mut chars = input.char_indices();
-    let _ = chars
-        .next()
-        .ok_or_else(|| "unexpected end of input".to_string())?;
-    chars
-        .next()
-        .map_or_else(|| Ok((input, "")), |(idx, _)| Ok(input.split_at(idx)))
-}
-
-fn eval_terminal(char: char, input: &str) -> Result {
-    let mut chars = input.char_indices();
-    let (_, actual) = chars
-        .next()
-        .ok_or_else(|| "unexpected end of input".to_string())?;
-    if actual == char {
-        chars
-            .next()
-            .map_or_else(|| Ok((input, "")), |(idx, _)| Ok(input.split_at(idx)))
-    } else {
-        Err(format!("expected '{}'", char))
-    }
-}
-
-fn eval_sequence<'a>(expr1: &Expression, expr2: &Expression, input: &'a str) -> Result<'a> {
-    let (output1, input2) = expr1.eval(input)?;
-    let (output2, _remainder) = expr2.eval(input2)?;
-    Ok(input.split_at(output1.len() + output2.len()))
-}
-
-fn eval_ordered_choice<'a>(expr1: &Expression, expr2: &Expression, input: &'a str) -> Result<'a> {
-    expr1.eval(input).or_else(|mut error| {
-        expr2.eval(input).map_err(|error2| {
-            error.push_str(" or ");
-            error.push_str(&error2);
-            error
-        })
-    })
-}
-
-fn eval_zero_or_more<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
-    let mut remaining = input;
-    while let Ok((_, remaining_)) = expr.eval(remaining) {
-        remaining = remaining_;
-    }
-    Ok(input.split_at(input.len() - remaining.len()))
-}
-
-fn eval_one_or_more<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
-    let (_, mut remaining) = expr.eval(input)?;
-    while let Ok((_, remaining_)) = expr.eval(remaining) {
-        remaining = remaining_;
-    }
-    Ok(input.split_at(input.len() - remaining.len()))
-}
-
-fn eval_optional<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
-    expr.eval(input).or_else(|_| Ok(("", input)))
-}
-
-fn eval_and_predicate<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
-    expr.eval(input)?;
-    Ok(("", input))
-}
-
-fn eval_not_predicate<'a>(expr: &Expression, input: &'a str) -> Result<'a> {
-    expr.eval(input)
-        .map_or_else(|_| Ok(("", input)), |_| Err("unexpected input".to_string()))
-}
+mod and_predicate;
+mod any;
+mod char;
+mod map;
+mod map_err;
+mod not_predicate;
+mod nothing;
+mod one_or_more;
+mod optional;
+mod ordered_choice;
+mod sequence;
+mod zero_or_more;
 
 #[cfg(test)]
-mod tests {
-    use super::Expression::*;
+mod test_expr;
 
-    #[test]
-    fn construct_empty() {
-        let _ = Empty;
-    }
+pub use self::and_predicate::*;
+pub use self::any::*;
+pub use self::char::*;
+pub use self::map::*;
+pub use self::map_err::*;
+pub use self::not_predicate::*;
+pub use self::nothing::*;
+pub use self::one_or_more::*;
+pub use self::optional::*;
+pub use self::ordered_choice::*;
+pub use self::sequence::*;
+pub use self::zero_or_more::*;
 
-    #[test]
-    fn eval_empty() {
-        let expr = Empty;
-        assert_eq!(expr.eval(""), Ok(("", "")));
-    }
+/// Represents the reasons the `Parser`s in this module might fail.
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    /// Indicates that parsing failed because more input was expected.
+    UnexpectedEndOfInput,
 
-    #[test]
-    fn construct_any() {
-        let _ = Any;
-    }
-
-    #[test]
-    fn eval_any_ok() {
-        let expr = Any;
-        assert_eq!(expr.eval("a"), Ok(("a", "")));
-    }
-
-    #[test]
-    fn eval_any_err() {
-        let expr = Any;
-        assert_eq!(expr.eval(""), Err("unexpected end of input".to_string()));
-    }
-
-    #[test]
-    fn construct_terminal() {
-        let _ = Terminal('a');
-    }
-
-    #[test]
-    fn eval_terminal_ok() {
-        let expr = Terminal('a');
-        assert_eq!(expr.eval("a"), Ok(("a", "")));
-    }
-
-    #[test]
-    fn eval_terminal_err() {
-        let expr = Terminal('a');
-        assert_eq!(expr.eval(""), Err("unexpected end of input".to_string()));
-    }
-
-    #[test]
-    fn construct_sequence() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let _ = Sequence(&a, &b);
-    }
-
-    #[test]
-    fn eval_sequence_ok() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let expr = Sequence(&a, &b);
-        assert_eq!(expr.eval("ab"), Ok(("ab", "")));
-    }
-
-    #[test]
-    fn eval_sequence_err1() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let expr = Sequence(&a, &b);
-        assert_eq!(expr.eval("bb"), Err("expected 'a'".to_string()));
-    }
-
-    #[test]
-    fn eval_sequence_err2() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let expr = Sequence(&a, &b);
-        assert_eq!(expr.eval("aa"), Err("expected 'b'".to_string()));
-    }
-
-    #[test]
-    fn construct_ordered_choice() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let _ = OrderedChoice(&a, &b);
-    }
-
-    #[test]
-    fn eval_ordered_choice_ok1() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let expr = OrderedChoice(&a, &b);
-        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
-    }
-
-    #[test]
-    fn eval_ordered_choice_ok2() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let expr = OrderedChoice(&a, &b);
-        assert_eq!(expr.eval("ba"), Ok(("b", "a")));
-    }
-
-    #[test]
-    fn eval_ordered_choice_err() {
-        let a = Terminal('a');
-        let b = Terminal('b');
-        let expr = OrderedChoice(&a, &b);
-        assert_eq!(
-            expr.eval("c"),
-            Err("expected 'a' or expected 'b'".to_string())
-        );
-    }
-
-    #[test]
-    fn construct_zero_or_more() {
-        let a = Terminal('a');
-        let _ = ZeroOrMore(&a);
-    }
-
-    #[test]
-    fn eval_zero_or_more_ok_empty() {
-        let a = Terminal('a');
-        let expr = ZeroOrMore(&a);
-        assert_eq!(expr.eval(""), Ok(("", "")));
-    }
-
-    #[test]
-    fn eval_zero_or_more_ok_no_match() {
-        let a = Terminal('a');
-        let expr = ZeroOrMore(&a);
-        assert_eq!(expr.eval("b"), Ok(("", "b")));
-    }
-
-    #[test]
-    fn eval_zero_or_more_ok_one() {
-        let a = Terminal('a');
-        let expr = ZeroOrMore(&a);
-        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
-    }
-
-    #[test]
-    fn eval_zero_or_more_ok_more() {
-        let a = Terminal('a');
-        let expr = ZeroOrMore(&a);
-        assert_eq!(expr.eval("aaab"), Ok(("aaa", "b")));
-    }
-
-    #[test]
-    fn construct_one_or_more() {
-        let a = Terminal('a');
-        let _ = OneOrMore(&a);
-    }
-
-    #[test]
-    fn eval_one_or_more_err_empty() {
-        let a = Terminal('a');
-        let expr = OneOrMore(&a);
-        assert_eq!(expr.eval(""), Err("unexpected end of input".to_string()));
-    }
-
-    #[test]
-    fn eval_one_or_more_err_no_match() {
-        let a = Terminal('a');
-        let expr = OneOrMore(&a);
-        assert_eq!(expr.eval("b"), Err("expected 'a'".to_string()));
-    }
-
-    #[test]
-    fn eval_one_or_more_ok_one() {
-        let a = Terminal('a');
-        let expr = OneOrMore(&a);
-        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
-    }
-
-    #[test]
-    fn eval_one_or_more_ok_more() {
-        let a = Terminal('a');
-        let expr = OneOrMore(&a);
-        assert_eq!(expr.eval("aaab"), Ok(("aaa", "b")));
-    }
-
-    #[test]
-    fn construct_optional() {
-        let a = Terminal('a');
-        let _ = Optional(&a);
-    }
-
-    #[test]
-    fn eval_optional_ok_empty() {
-        let a = Terminal('a');
-        let expr = Optional(&a);
-        assert_eq!(expr.eval(""), Ok(("", "")));
-    }
-
-    #[test]
-    fn eval_optional_ok_no_match() {
-        let a = Terminal('a');
-        let expr = Optional(&a);
-        assert_eq!(expr.eval("b"), Ok(("", "b")));
-    }
-
-    #[test]
-    fn eval_optional_ok_match() {
-        let a = Terminal('a');
-        let expr = Optional(&a);
-        assert_eq!(expr.eval("ab"), Ok(("a", "b")));
-    }
-
-    #[test]
-    fn construct_and_predicate() {
-        let a = Terminal('a');
-        let _ = AndPredicate(&a);
-    }
-
-    #[test]
-    fn eval_and_predicate_ok() {
-        let a = Terminal('a');
-        let expr = AndPredicate(&a);
-        assert_eq!(expr.eval("a"), Ok(("", "a")));
-    }
-
-    #[test]
-    fn eval_and_predicate_err() {
-        let a = Terminal('a');
-        let expr = AndPredicate(&a);
-        assert_eq!(expr.eval("b"), Err("expected 'a'".to_string()));
-    }
-
-    #[test]
-    fn construct_not_predicate() {
-        let a = Terminal('a');
-        let _ = NotPredicate(&a);
-    }
-
-    #[test]
-    fn eval_not_predicate_ok() {
-        let a = Terminal('a');
-        let expr = NotPredicate(&a);
-        assert_eq!(expr.eval("b"), Ok(("", "b")));
-    }
-
-    #[test]
-    fn eval_not_predicate_err() {
-        let a = Terminal('a');
-        let expr = NotPredicate(&a);
-        assert_eq!(expr.eval("a"), Err("unexpected input".to_string()));
-    }
-
-    #[test]
-    fn parse_err_no_match() {
-        let a = Terminal('a');
-        assert_eq!(a.parse("b"), Err("expected 'a'".to_string()));
-    }
-
-    #[test]
-    fn parse_err_match_and_remainder() {
-        let a = Terminal('a');
-        assert_eq!(a.parse("ab"), Err("expected end of input".to_string()));
-    }
-
-    #[test]
-    fn parse_ok_match_no_remainder() {
-        let a = Terminal('a');
-        assert_eq!(a.parse("a"), Ok("a"));
-    }
-
-    #[test]
-    fn parse_strings() {
-        let expr = OrderedChoice(
-            &Sequence(
-                &Terminal('\''),
-                &Sequence(
-                    &ZeroOrMore(&Sequence(
-                        &OrderedChoice(&Terminal('\\'), &NotPredicate(&Terminal('\''))),
-                        &Any,
-                    )),
-                    &Terminal('\''),
-                ),
-            ),
-            &Sequence(
-                &Terminal('"'),
-                &Sequence(
-                    &ZeroOrMore(&Sequence(
-                        &OrderedChoice(&Terminal('\\'), &NotPredicate(&Terminal('"'))),
-                        &Any,
-                    )),
-                    &Terminal('"'),
-                ),
-            ),
-        );
-
-        assert_eq!(expr.eval("'hello world'"), Ok(("'hello world'", "")));
-        assert_eq!(expr.eval("'hello\\''"), Ok(("'hello\\''", "")));
-        assert_eq!(expr.eval("'hello\\'world'"), Ok(("'hello\\'world'", "")));
-
-        assert_eq!(expr.eval("\"hello world\""), Ok(("\"hello world\"", "")));
-        assert_eq!(expr.eval("\"hello\\\"\""), Ok(("\"hello\\\"\"", "")));
-        assert_eq!(
-            expr.eval("\"hello\\\"world\""),
-            Ok(("\"hello\\\"world\"", ""))
-        );
-    }
+    /// Indicates that parsing failed because an expected character wasn't present.
+    ExpectedChar(char),
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::parser::Parser;
+//     use crate::span::Span;
+
+//     #[test]
+//     fn trivial_calculator() {
+//         #[derive(Debug, PartialEq)]
+//         enum Token {
+//             Num(i8),
+//             OpAdd,
+//             OpSub,
+//         }
+
+//         #[derive(Debug, PartialEq)]
+//         enum Expr {
+//             Num(i8),
+//             Add(Span<i8>, Span<i8>),
+//         }
+
+//         #[derive(Debug, PartialEq)]
+//         enum CalcError {
+//             InvalidNumber,
+//             InvalidOperator,
+//         }
+
+//         let num = MapErr(
+//             OrderedChoice::<&dyn Parser<Value = _, Error = _>>(vec![
+//                 &Map(Char('1'), |_| Token::Num(1)),
+//                 &Map(Char('2'), |_| Token::Num(2)),
+//             ]),
+//             |_| CalcError::InvalidNumber,
+//         );
+//         let op = MapErr(
+//             OrderedChoice::<&dyn Parser<Value = _, Error = _>>(vec![
+//                 &Map(Char('+'), |_| Token::OpAdd),
+//                 &Map(Char('-'), |_| Token::OpSub),
+//             ]),
+//             |_| CalcError::InvalidOperator,
+//         );
+//         let add = Map(
+//             Sequence::<&dyn Parser<Value = _, Error = _>>(vec![&num, &op, &num]),
+//             |mut seq: Vec<Span<Token>>| {
+//                 let mut seq = seq.drain(0..3);
+//                 let a = seq.next().unwrap();
+//                 let op = seq.next().unwrap().take();
+//                 let b = seq.next().unwrap();
+
+//                 let a = a.map(|token| match token {
+//                     Token::Num(a) => a,
+//                     _ => unreachable!(),
+//                 });
+//                 let b = b.map(move |token| match (op, token) {
+//                     (Token::OpAdd, Token::Num(b)) => b,
+//                     (Token::OpSub, Token::Num(b)) => -b,
+//                     _ => unreachable!(),
+//                 });
+
+//                 Expr::Add(a, b)
+//             },
+//         );
+//         let expr_num = Map(&num, |token| match token {
+//             Token::Num(n) => Expr::Num(n),
+//             _ => unreachable!(),
+//         });
+//         let expr = OrderedChoice::<&dyn Parser<Value = _, Error = _>>(vec![&add, &expr_num]);
+
+//         assert_eq!(expr.parse("1"), Ok(Span::new(0..1, Expr::Num(1))));
+//         assert_eq!(expr.parse("2"), Ok(Span::new(0..1, Expr::Num(2))));
+//         assert_eq!(
+//             expr.parse("1+2"),
+//             Ok(Span::new(
+//                 0..3,
+//                 Expr::Add(Span::new(0..1, 1), Span::new(2..3, 2))
+//             ))
+//         );
+//         assert_eq!(
+//             expr.parse("1-2"),
+//             Ok(Span::new(
+//                 0..3,
+//                 Expr::Add(Span::new(0..1, 1), Span::new(2..3, -2))
+//             ))
+//         );
+//         assert_eq!(
+//             expr.parse("wow"),
+//             Err(Span::new(
+//                 0..1,
+//                 vec![
+//                     Span::new(0..1, CalcError::InvalidNumber),
+//                     Span::new(0..1, CalcError::InvalidNumber)
+//                 ]
+//             ))
+//         );
+//     }
+// }
