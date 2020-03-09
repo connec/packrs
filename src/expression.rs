@@ -2,34 +2,34 @@
 //!
 //! [`Parser`]: trait.Parser.html
 
-mod and_predicate;
+mod all_of;
 mod any;
-mod char;
+mod check;
+mod chr;
 mod map;
 mod map_err;
-mod not_predicate;
+mod maybe;
+mod maybe_repeat;
 mod nothing;
-mod one_or_more;
-mod optional;
-mod ordered_choice;
-mod sequence;
-mod zero_or_more;
+mod one_of;
+mod reject;
+mod repeat;
 
 #[cfg(test)]
 mod test_expr;
 
-pub use self::and_predicate::*;
+pub use self::all_of::*;
 pub use self::any::*;
-pub use self::char::*;
+pub use self::check::*;
+pub use self::chr::*;
 pub use self::map::*;
 pub use self::map_err::*;
-pub use self::not_predicate::*;
+pub use self::maybe::*;
+pub use self::maybe_repeat::*;
 pub use self::nothing::*;
-pub use self::one_or_more::*;
-pub use self::optional::*;
-pub use self::ordered_choice::*;
-pub use self::sequence::*;
-pub use self::zero_or_more::*;
+pub use self::one_of::*;
+pub use self::reject::*;
+pub use self::repeat::*;
 
 // #[cfg(test)]
 // mod tests {

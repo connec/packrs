@@ -4,9 +4,9 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that returns the first successful match from a sequence of sub-expressions.
-pub struct OrderedChoice<P>(Vec<P>);
+pub struct OneOf<P>(Vec<P>);
 
-impl<'a, P> Parser<'a> for OrderedChoice<P>
+impl<'a, P> Parser<'a> for OneOf<P>
 where
     P: Parser<'a>,
 {
@@ -48,12 +48,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::OrderedChoice;
+    use super::OneOf;
 
     #[test]
     fn empty() {
         assert_eq!(
-            OrderedChoice::<TestExpr>(vec![]).parse("hello"),
+            OneOf::<TestExpr>(vec![]).parse("hello"),
             Err(Span::new(0..0, vec![]))
         );
     }
@@ -62,7 +62,7 @@ mod tests {
     fn p1_match() {
         let p1 = TestExpr::ok(32..71);
         let p2 = TestExpr::err(12..29);
-        let result = OrderedChoice(vec![&p1, &p2]).parse("hello");
+        let result = OneOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 0, Ok(Span::new(32..71, TestValue)))
@@ -73,7 +73,7 @@ mod tests {
     fn p2_match() {
         let p1 = TestExpr::err(32..71);
         let p2 = TestExpr::ok(12..29);
-        let result = OrderedChoice(vec![&p1, &p2]).parse("hello");
+        let result = OneOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 1, Ok(Span::new(12..29, TestValue)))
@@ -84,7 +84,7 @@ mod tests {
     fn p1_and_p2_match() {
         let p1 = TestExpr::ok(32..71);
         let p2 = TestExpr::ok(12..29);
-        let result = OrderedChoice(vec![&p1, &p2]).parse("hello");
+        let result = OneOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 0, Ok(Span::new(32..71, TestValue)))
@@ -95,7 +95,7 @@ mod tests {
     fn p1_and_p2_error() {
         let p1 = TestExpr::err(32..71);
         let p2 = TestExpr::err(12..29);
-        let result = OrderedChoice(vec![&p1, &p2]).parse("hello");
+        let result = OneOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (
@@ -118,7 +118,7 @@ mod tests {
                 None
             }
         });
-        let result = OrderedChoice(ps.iter().collect()).parse(&input);
+        let result = OneOf(ps.iter().collect()).parse(&input);
         match first_match {
             Some((i, p)) => {
                 assert_eq!(result, Ok(Span::new(p.config().range(), TestValue)));

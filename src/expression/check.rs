@@ -2,9 +2,9 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that tries to match a sub-expression, producing no result and consuming no input.
-pub struct AndPredicate<P>(P);
+pub struct Check<P>(P);
 
-impl<'a, P> Parser<'a> for AndPredicate<P>
+impl<'a, P> Parser<'a> for Check<P>
 where
     P: Parser<'a>,
 {
@@ -27,12 +27,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::AndPredicate;
+    use super::Check;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            AndPredicate(TestExpr::ok(12..37)).parse("hello"),
+            Check(TestExpr::ok(12..37)).parse("hello"),
             Ok(Span::new(0..0, ()))
         );
     }
@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            AndPredicate(TestExpr::err(12..37)).parse("hello"),
+            Check(TestExpr::err(12..37)).parse("hello"),
             Err(Span::new(12..37, TestError))
         );
     }
@@ -48,7 +48,7 @@ mod tests {
     #[quickcheck]
     fn parse(p: TestExpr, input: String) {
         assert_eq!(
-            AndPredicate(&p).parse(&input),
+            Check(&p).parse(&input),
             match p {
                 ParseMatch(_, _) => Ok(Span::new(0..0, ())),
                 ParseError(config) => Err(Span::new(config.range(), TestError)),

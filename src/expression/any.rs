@@ -1,12 +1,12 @@
 use crate::parser::Parser;
 use crate::span::Span;
 
-/// An expression for parsing an arbitrary character.
-pub struct Any;
-
 /// A struct representing a failure due to unexpected end of input.
 #[derive(Debug, PartialEq)]
 pub struct UnexpectedEndOfInput;
+
+/// An expression for parsing an arbitrary character.
+pub struct Any;
 
 impl<'a> Parser<'a> for Any {
     type Value = &'a str;

@@ -4,9 +4,9 @@ use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression that matches a sub-expression as many times as it can.
-pub struct ZeroOrMore<P>(P);
+pub struct MaybeRepeat<P>(P);
 
-impl<'a, P> Parser<'a> for ZeroOrMore<P>
+impl<'a, P> Parser<'a> for MaybeRepeat<P>
 where
     P: Parser<'a>,
 {
@@ -40,12 +40,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::ZeroOrMore;
+    use super::MaybeRepeat;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            ZeroOrMore(TestExpr::ok_iters(0..1, 100))
+            MaybeRepeat(TestExpr::ok_iters(0..1, 100))
                 .parse(&repeat('a').take(100).collect::<String>()[..]),
             Ok(Span::new(
                 0..100,
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            ZeroOrMore(TestExpr::err(77..367)).parse("whatever"),
+            MaybeRepeat(TestExpr::err(77..367)).parse("whatever"),
             Ok(Span::new(0..0, vec![]))
         );
     }
@@ -87,7 +87,7 @@ mod tests {
     #[quickcheck]
     fn parse(TestData((expr, input)): TestData) {
         assert_eq!(
-            ZeroOrMore(&expr).parse(&input),
+            MaybeRepeat(&expr).parse(&input),
             match expr {
                 ParseMatch(config, iters) => {
                     let segment = config.range().end;

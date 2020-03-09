@@ -2,9 +2,9 @@ use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression that matches a sub-expression at least once, then as many times as it can.
-pub struct OneOrMore<P>(P);
+pub struct Repeat<P>(P);
 
-impl<'a, P> Parser<'a> for OneOrMore<P>
+impl<'a, P> Parser<'a> for Repeat<P>
 where
     P: Parser<'a>,
 {
@@ -39,12 +39,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::OneOrMore;
+    use super::Repeat;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            OneOrMore(TestExpr::ok_iters(0..1, 100))
+            Repeat(TestExpr::ok_iters(0..1, 100))
                 .parse(&repeat('a').take(100).collect::<String>()[..]),
             Ok(Span::new(
                 0..100,
@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            OneOrMore(TestExpr::err(77..367)).parse("whatever"),
+            Repeat(TestExpr::err(77..367)).parse("whatever"),
             Err(Span::new(77..367, TestError))
         );
     }
@@ -86,7 +86,7 @@ mod tests {
     #[quickcheck]
     fn parse(TestData((expr, input)): TestData) {
         assert_eq!(
-            OneOrMore(&expr).parse(&input),
+            Repeat(&expr).parse(&input),
             match expr {
                 ParseMatch(config, iters) => {
                     let segment = config.range().end;

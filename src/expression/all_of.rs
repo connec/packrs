@@ -2,9 +2,9 @@ use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression for parsing a sequence of sub-expressions.
-pub struct Sequence<P>(Vec<P>);
+pub struct AllOf<P>(Vec<P>);
 
-impl<'a, P> Parser<'a> for Sequence<P>
+impl<'a, P> Parser<'a> for AllOf<P>
 where
     P: Parser<'a>,
 {
@@ -49,12 +49,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::Sequence;
+    use super::AllOf;
 
     #[test]
     fn empty() {
         assert_eq!(
-            Sequence::<TestExpr>(vec![]).parse("hello"),
+            AllOf::<TestExpr>(vec![]).parse("hello"),
             Ok(Span::new(0..0, vec![]))
         );
     }
@@ -63,7 +63,7 @@ mod tests {
     fn p1_match() {
         let p1 = TestExpr::ok(1..3);
         let p2 = TestExpr::err(0..2);
-        let result = Sequence(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (1, 1, Err(Span::new(3..5, TestError)))
@@ -74,7 +74,7 @@ mod tests {
     fn p2_match() {
         let p1 = TestExpr::err(1..3);
         let p2 = TestExpr::ok(0..2);
-        let result = Sequence(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (1, 0, Err(Span::new(1..3, TestError)))
@@ -85,7 +85,7 @@ mod tests {
     fn p1_p2_match() {
         let p1 = TestExpr::ok(1..3);
         let p2 = TestExpr::ok(0..2);
-        let result = Sequence(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (
@@ -103,7 +103,7 @@ mod tests {
     fn p1_p2_error() {
         let p1 = TestExpr::err(1..3);
         let p2 = TestExpr::err(0..2);
-        let result = Sequence(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (1, 0, Err(Span::new(1..3, TestError)))
@@ -153,7 +153,7 @@ mod tests {
                 Some((i, p.clone()))
             }
         });
-        let result = Sequence(ps.iter().collect()).parse(&input);
+        let result = AllOf(ps.iter().collect()).parse(&input);
         match first_error {
             Some((i, p)) => {
                 let end = ps.iter().take(i).map(|p| p.config().range().end).sum();

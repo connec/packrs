@@ -2,9 +2,9 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that tries to match a sub-expression, producing no result and consuming no input.
-pub struct NotPredicate<P>(P);
+pub struct Reject<P>(P);
 
-impl<'a, P> Parser<'a> for NotPredicate<P>
+impl<'a, P> Parser<'a> for Reject<P>
 where
     P: Parser<'a>,
 {
@@ -30,12 +30,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::NotPredicate;
+    use super::Reject;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            NotPredicate(TestExpr::ok(12..37)).parse("hello"),
+            Reject(TestExpr::ok(12..37)).parse("hello"),
             Err(Span::new(0..0, ()))
         );
     }
@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            NotPredicate(TestExpr::err(12..37)).parse("hello"),
+            Reject(TestExpr::err(12..37)).parse("hello"),
             Ok(Span::new(0..0, ()))
         );
     }
@@ -51,7 +51,7 @@ mod tests {
     #[quickcheck]
     fn parse(p: TestExpr, input: String) {
         assert_eq!(
-            NotPredicate(&p).parse(&input),
+            Reject(&p).parse(&input),
             match p {
                 ParseMatch(_, _) => Err(Span::new(0..0, ())),
                 ParseError(_) => Ok(Span::new(0..0, ())),

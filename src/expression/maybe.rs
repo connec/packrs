@@ -4,9 +4,9 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that tries to match a sub-expression, and succeeds regardless.
-pub struct Optional<P>(P);
+pub struct Maybe<P>(P);
 
-impl<'a, P> Parser<'a> for Optional<P>
+impl<'a, P> Parser<'a> for Maybe<P>
 where
     P: Parser<'a>,
 {
@@ -32,12 +32,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::Optional;
+    use super::Maybe;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            Optional(TestExpr::ok(83..98)).parse("hello"),
+            Maybe(TestExpr::ok(83..98)).parse("hello"),
             Ok(Span::new(83..98, Some(Span::new(83..98, TestValue))))
         );
     }
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            Optional(TestExpr::err(5..458)).parse("hello"),
+            Maybe(TestExpr::err(5..458)).parse("hello"),
             Ok(Span::new(0..0, None))
         );
     }
@@ -53,7 +53,7 @@ mod tests {
     #[quickcheck]
     fn parse(p: TestExpr, input: String) {
         assert_eq!(
-            Optional(&p).parse(&input),
+            Maybe(&p).parse(&input),
             Ok(match p {
                 ParseMatch(config, _) =>
                     Span::new(config.range(), Some(Span::new(config.range(), TestValue))),

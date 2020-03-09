@@ -1,14 +1,14 @@
 use crate::parser::Parser;
 use crate::span::Span;
 
-/// An expression for parsing a specific character.
-pub struct Char(char);
-
 /// A struct representing a failure due to a missing expected character.
 #[derive(Debug, PartialEq)]
 pub struct ExpectedChar(char);
 
-impl<'a> Parser<'a> for Char {
+/// An expression for parsing a specific character.
+pub struct Chr(char);
+
+impl<'a> Parser<'a> for Chr {
     type Value = &'a str;
     type Error = ExpectedChar;
 
@@ -39,32 +39,32 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{Char, ExpectedChar};
+    use super::{Chr, ExpectedChar};
 
     #[test]
     fn match_ascii() {
-        assert_eq!(Char('h').parse("hello"), Ok(Span::new(0..1, "h")));
+        assert_eq!(Chr('h').parse("hello"), Ok(Span::new(0..1, "h")));
     }
 
     #[test]
     fn match_utf8() {
-        assert_eq!(Char('💩').parse("💩"), Ok(Span::new(0..4, "💩")));
+        assert_eq!(Chr('💩').parse("💩"), Ok(Span::new(0..4, "💩")));
     }
 
     #[test]
     fn match_grapheme() {
-        assert_eq!(Char('न').parse("नि"), Ok(Span::new(0..3, "न")));
+        assert_eq!(Chr('न').parse("नि"), Ok(Span::new(0..3, "न")));
     }
 
     #[test]
     fn error_if_empty() {
-        assert_eq!(Char('h').parse(""), Err(Span::new(0..0, ExpectedChar('h'))));
+        assert_eq!(Chr('h').parse(""), Err(Span::new(0..0, ExpectedChar('h'))));
     }
 
     #[test]
     fn error_if_wrong_char_ascii() {
         assert_eq!(
-            Char('h').parse("world"),
+            Chr('h').parse("world"),
             Err(Span::new(0..1, ExpectedChar('h')))
         );
     }
@@ -72,14 +72,14 @@ mod tests {
     #[test]
     fn error_if_wrong_char_grapheme() {
         assert_eq!(
-            Char('h').parse("नि"),
+            Chr('h').parse("नि"),
             Err(Span::new(0..3, ExpectedChar('h')))
         );
     }
 
     #[quickcheck]
     fn parse(char: char, input: String) {
-        let result = Char(char).parse(&input);
+        let result = Chr(char).parse(&input);
         if input.starts_with(char) {
             assert_eq!(
                 result,
