@@ -31,16 +31,6 @@ pub use self::ordered_choice::*;
 pub use self::sequence::*;
 pub use self::zero_or_more::*;
 
-/// Represents the reasons the `Parser`s in this module might fail.
-#[derive(Debug, PartialEq)]
-pub enum Error {
-    /// Indicates that parsing failed because more input was expected.
-    UnexpectedEndOfInput,
-
-    /// Indicates that parsing failed because an expected character wasn't present.
-    ExpectedChar(char),
-}
-
 // #[cfg(test)]
 // mod tests {
 //     use super::*;

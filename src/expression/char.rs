@@ -1,14 +1,16 @@
 use crate::parser::Parser;
 use crate::span::Span;
 
-use super::Error::{self, *};
-
 /// An expression for parsing a specific character.
 pub struct Char(char);
 
+/// A struct representing a failure due to a missing expected character.
+#[derive(Debug, PartialEq)]
+pub struct ExpectedChar(char);
+
 impl<'a> Parser<'a> for Char {
     type Value = &'a str;
-    type Error = Error;
+    type Error = ExpectedChar;
 
     /// Parse a specific character from an `&str`.
     ///
@@ -34,11 +36,10 @@ impl<'a> Parser<'a> for Char {
 mod tests {
     use quickcheck_macros::quickcheck;
 
-    use crate::expression::Error::ExpectedChar;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::Char;
+    use super::{Char, ExpectedChar};
 
     #[test]
     fn match_ascii() {

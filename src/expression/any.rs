@@ -1,14 +1,16 @@
 use crate::parser::Parser;
 use crate::span::Span;
 
-use super::Error::{self, *};
-
 /// An expression for parsing an arbitrary character.
 pub struct Any;
 
+/// A struct representing a failure due to unexpected end of input.
+#[derive(Debug, PartialEq)]
+pub struct UnexpectedEndOfInput;
+
 impl<'a> Parser<'a> for Any {
     type Value = &'a str;
-    type Error = Error;
+    type Error = UnexpectedEndOfInput;
 
     /// Parse an arbitrary character from an `&str`.
     ///
@@ -30,11 +32,10 @@ impl<'a> Parser<'a> for Any {
 mod tests {
     use quickcheck_macros::quickcheck;
 
-    use crate::expression::Error::UnexpectedEndOfInput;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::Any;
+    use super::{Any, UnexpectedEndOfInput};
 
     #[test]
     fn match_ascii() {
