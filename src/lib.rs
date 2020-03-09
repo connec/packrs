@@ -1,20 +1,11 @@
 #![deny(missing_docs)]
 
 //! Parsing expression grammar library.
-//!
-//! Currently there are two implementations of PEG expressions:
-//!
-//! - [`combinators`] implements PEG expressions as parser combinators.
-//! - [`expressions`] implements PEG expressions as an enum.
-//!
-//! Both are currently only capable of *matching* a given `&str` input, and cannot make use of the
-//! structural information discovered during parsing.
-//!
-//! [`combinators`]: combinators/index.html
-//! [`expressions`]: expressions/index.html
 
 mod expression;
 mod parser;
 mod span;
 
+pub use expression::*;
+pub use parser::{ParseResult, Parser};
 pub use span::Span;

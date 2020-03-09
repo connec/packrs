@@ -27,6 +27,7 @@ where
 
 /// A trait for convenience methods on parse results.
 pub trait ParseResult<V, E> {
+    /// Offset the span of the result relative to the given end index.
     fn relative_to(self, end: usize) -> Result<Span<V>, Span<E>>;
 }
 
