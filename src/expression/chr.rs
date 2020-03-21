@@ -3,7 +3,10 @@ use crate::span::Span;
 
 /// A struct representing a failure due to a missing expected character.
 #[derive(Debug, PartialEq)]
-pub struct ExpectedChar(char);
+pub struct ExpectedChar(
+    /// The character that was expected.
+    pub char,
+);
 
 /// An expression for parsing a specific character.
 pub struct Chr(pub(crate) char);

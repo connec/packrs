@@ -12,16 +12,29 @@ pub trait Parser<'a> {
     fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>>;
 }
 
-impl<'a, P, V, E> Parser<'a> for &P
+impl<'a, P> Parser<'a> for &P
 where
-    P: Parser<'a, Value = V, Error = E> + ?Sized,
+    P: Parser<'a> + ?Sized,
 {
-    type Value = V;
+    type Value = P::Value;
 
-    type Error = E;
+    type Error = P::Error;
 
     fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         (*self).parse(input)
+    }
+}
+
+impl<'a, P> Parser<'a> for Box<P>
+where
+    P: Parser<'a> + ?Sized,
+{
+    type Value = P::Value;
+
+    type Error = P::Error;
+
+    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+        self.as_ref().parse(input)
     }
 }
 

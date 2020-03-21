@@ -2,10 +2,12 @@
 
 //! Parsing expression grammar library.
 
+mod combinators;
 mod expression;
 mod parser;
 mod span;
 
-pub use expression::*;
+pub use combinators::*;
+pub use expression::{ExpectedChar, UnexpectedEndOfInput};
 pub use parser::{ParseResult, Parser};
 pub use span::Span;
