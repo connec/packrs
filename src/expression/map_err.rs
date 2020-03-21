@@ -2,7 +2,7 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that transforms a failed sub-expression result.
-pub struct MapErr<P, F>(P, F);
+pub struct MapErr<P, F>(pub(crate) P, pub(crate) F);
 
 impl<'a, P, F, E, U> Parser<'a> for MapErr<P, F>
 where

@@ -4,7 +4,7 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that returns the first successful match from a sequence of sub-expressions.
-pub struct OneOf<P>(Vec<P>);
+pub struct OneOf<P>(pub(crate) Vec<P>);
 
 impl<'a, P> Parser<'a> for OneOf<P>
 where

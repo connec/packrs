@@ -2,7 +2,7 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that transforms a successful sub-expression result.
-pub struct Map<P, F>(P, F);
+pub struct Map<P, F>(pub(crate) P, pub(crate) F);
 
 impl<'a, P, F, V, U> Parser<'a> for Map<P, F>
 where

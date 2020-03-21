@@ -4,7 +4,7 @@ use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression that matches a sub-expression as many times as it can.
-pub struct MaybeRepeat<P>(P);
+pub struct MaybeRepeat<P>(pub(crate) P);
 
 impl<'a, P> Parser<'a> for MaybeRepeat<P>
 where

@@ -2,7 +2,7 @@ use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression that matches a sub-expression at least once, then as many times as it can.
-pub struct Repeat<P>(P);
+pub struct Repeat<P>(pub(crate) P);
 
 impl<'a, P> Parser<'a> for Repeat<P>
 where

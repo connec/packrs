@@ -4,7 +4,7 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that tries to match a sub-expression, and succeeds regardless.
-pub struct Maybe<P>(P);
+pub struct Maybe<P>(pub(crate) P);
 
 impl<'a, P> Parser<'a> for Maybe<P>
 where

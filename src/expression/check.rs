@@ -2,7 +2,7 @@ use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that tries to match a sub-expression, producing no result and consuming no input.
-pub struct Check<P>(P);
+pub struct Check<P>(pub(crate) P);
 
 impl<'a, P> Parser<'a> for Check<P>
 where

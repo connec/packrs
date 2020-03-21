@@ -6,7 +6,7 @@ use crate::span::Span;
 pub struct ExpectedChar(char);
 
 /// An expression for parsing a specific character.
-pub struct Chr(char);
+pub struct Chr(pub(crate) char);
 
 impl<'a> Parser<'a> for Chr {
     type Value = &'a str;

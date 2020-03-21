@@ -2,7 +2,7 @@ use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression for parsing a sequence of sub-expressions.
-pub struct AllOf<P>(Vec<P>);
+pub struct AllOf<P>(pub(crate) Vec<P>);
 
 impl<'a, P> Parser<'a> for AllOf<P>
 where
