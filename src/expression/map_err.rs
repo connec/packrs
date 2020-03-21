@@ -4,10 +4,10 @@ use crate::span::Span;
 /// An expression that transforms a failed sub-expression result.
 pub struct MapErr<P, F>(pub(crate) P, pub(crate) F);
 
-impl<'a, P, F, E, U> Parser<'a> for MapErr<P, F>
+impl<'a, P, F, U> Parser<'a> for MapErr<P, F>
 where
-    P: Parser<'a, Error = E>,
-    F: Fn(E) -> U,
+    P: Parser<'a>,
+    F: Fn(P::Error) -> U,
 {
     type Value = P::Value;
     type Error = U;
