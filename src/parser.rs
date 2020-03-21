@@ -37,3 +37,22 @@ impl<V, E> ParseResult<V, E> for Result<Span<V>, Span<E>> {
             .map_err(|value| value.relative_to(end))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::span::Span;
+
+    use super::ParseResult;
+
+    #[test]
+    fn test_parse_result_ok_relative_to() {
+        let result: Result<_, Span<()>> = Ok(Span::new(0..1, 2));
+        assert_eq!(result.relative_to(5), Ok(Span::new(5..6, 2)));
+    }
+
+    #[test]
+    fn test_parse_result_err_relative_to() {
+        let result: Result<Span<()>, _> = Err(Span::new(0..1, 2));
+        assert_eq!(result.relative_to(5), Err(Span::new(5..6, 2)));
+    }
+}

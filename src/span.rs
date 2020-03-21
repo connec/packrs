@@ -64,9 +64,36 @@ impl<T> Span<T> {
 mod tests {
     use super::Span;
 
+    #[derive(Debug, PartialEq)]
+    struct Value;
+
     #[test]
-    fn relative_to() {
-        let value = Span::new(0..10, ());
-        assert_eq!(value.relative_to(5), Span::new(5..15, ()));
+    fn test_start() {
+        let span = Span::new(0..1, Value);
+        assert_eq!(span.start(), 0);
+    }
+
+    #[test]
+    fn test_end() {
+        let span = Span::new(0..1, Value);
+        assert_eq!(span.end(), 1);
+    }
+
+    #[test]
+    fn test_take() {
+        let span = Span::new(0..1, Value);
+        assert_eq!(span.take(), Value);
+    }
+
+    #[test]
+    fn test_map() {
+        let span = Span::new(0..1, Value);
+        assert_eq!(span.map(|_| 2), Span::new(0..1, 2));
+    }
+
+    #[test]
+    fn test_relative_to() {
+        let span = Span::new(0..10, ());
+        assert_eq!(span.relative_to(5), Span::new(5..15, ()));
     }
 }
