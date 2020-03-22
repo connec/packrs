@@ -1,3 +1,5 @@
+use core::iter::FromIterator;
+
 use crate::combinators::*;
 use crate::parser::Parser;
 use crate::span::Span;
@@ -128,6 +130,24 @@ pub trait ParserExt {
     {
         repeat(self)
     }
+
+    /// Convert this parser to one that collects its result.
+    ///
+    /// This is paricularly useful for processing the results of [`all_of`], [`maybe_repeat`],
+    /// [`one_of`], and [`repeat`].
+    ///
+    /// [`all_of`]: ../combinators/fn.all_of.html
+    /// [`maybe_repeat`]: ../combinators/fn.maybe_repeat.html
+    /// [`one_of`]: ../combinators/fn.one_of.html
+    /// [`repeat`]: ../combinators/fn.repeat.html
+    fn collect<'i, 'p, C, I>(self) -> BoxedParser<'i, 'p, C, Self::Error>
+    where
+        Self: Parser<'i> + Sized + 'p,
+        Self::Value: IntoIterator<Item = Span<I>>,
+        C: FromIterator<I>,
+    {
+        self.map(|v| v.into_iter().map(|i| i.take()).collect())
+    }
 }
 
 impl<'i, P> ParserExt for P where P: Parser<'i> {}
@@ -248,6 +268,16 @@ mod tests {
                     Span::new(3..4, "2"),
                 ]
             ))
+        );
+    }
+
+    #[test]
+    fn test_collect() {
+        let expr = any().repeat().collect();
+
+        assert_eq!(
+            expr.parse("hello"),
+            Ok(Span::new(0..5, "hello".to_string()))
         );
     }
 }

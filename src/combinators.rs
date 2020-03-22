@@ -20,18 +20,11 @@ pub type BoxedParser<'i, 'p, V, E> = Box<dyn Parser<'i, Value = V, Error = E> + 
 /// be used to unify parser types.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Span, all_of, chr};
+/// use packrs::{ExpectedChar, ParserExt, Span, all_of, chr};
 ///
-/// let hello = all_of("hello".chars().map(chr).collect());
+/// let hello = all_of("hello".chars().map(chr).collect()).collect();
 ///
-/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, vec![
-///     Span::new(0..1, "h"),
-///     Span::new(1..2, "e"),
-///     Span::new(2..3, "l"),
-///     Span::new(3..4, "l"),
-///     Span::new(4..5, "o"),
-/// ])));
-///
+/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(hello.parse("world"), Err(Span::new(0..1, ExpectedChar('h'))));
 /// ```
 ///
@@ -60,15 +53,10 @@ where
 /// ]
 ///     .all_of()
 ///     .map(|mut v| v.pop().unwrap().take())
-///     .repeat();
+///     .repeat()
+///     .collect();
 ///
-/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, vec![
-///     Span::new(0..1, "h"),
-///     Span::new(1..2, "e"),
-///     Span::new(2..3, "l"),
-///     Span::new(3..4, "l"),
-///     Span::new(4..5, "o"),
-/// ])));
+/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
 /// ```
 pub fn any<'i, 'p>() -> BoxedParser<'i, 'p, &'i str, UnexpectedEndOfInput> {
@@ -104,17 +92,11 @@ where
 /// with `ExpectedChar(char)`.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Span, all_of, chr};
+/// use packrs::{ExpectedChar, ParserExt, Span, all_of, chr};
 ///
-/// let hello = all_of("hello".chars().map(chr).collect());
+/// let hello = "hello".chars().map(chr).collect::<Vec<_>>().all_of().collect();
 ///
-/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, vec![
-///     Span::new(0..1, "h"),
-///     Span::new(1..2, "e"),
-///     Span::new(2..3, "l"),
-///     Span::new(3..4, "l"),
-///     Span::new(4..5, "o"),
-/// ])));
+/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
 /// ```
 pub fn chr<'i, 'p>(char: char) -> BoxedParser<'i, 'p, &'i str, ExpectedChar> {
@@ -220,16 +202,12 @@ where
 ///             Some(span) => span.take(),
 ///             None => "",
 ///         })
-/// ].all_of();
+/// ]
+///     .all_of()
+///     .collect();
 ///
-/// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, vec![
-///     Span::new(0..1, "1"),
-///     Span::new(1..1, "")
-/// ])));
-/// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, vec![
-///     Span::new(0..1, "1"),
-///     Span::new(1..3, "+1")
-/// ])));
+/// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, "1".to_string())));
+/// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, "1+1".to_string())));
 /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
 /// ```
 pub fn maybe<'i, 'p, P, E>(parser: P) -> BoxedParser<'i, 'p, Option<Span<P::Value>>, E>
@@ -249,19 +227,11 @@ where
 /// ```
 /// use packrs::{ParserExt, Span, chr, maybe_repeat};
 ///
-/// let binary = maybe_repeat::<_, ()>(vec![chr('0'), chr('1')].one_of());
+/// let binary = maybe_repeat::<_, ()>(vec![chr('0'), chr('1')].one_of()).collect();
 ///
-/// assert_eq!(binary.parse(""), Ok(Span::new(0..0, vec![])));
-/// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, vec![
-///     Span::new(0..1, "0"),
-///     Span::new(1..2, "1"),
-///     Span::new(2..3, "0"),
-///     Span::new(3..4, "1"),
-/// ])));
-/// assert_eq!(binary.parse("012"), Ok(Span::new(0..2, vec![
-///     Span::new(0..1, "0"),
-///     Span::new(1..2, "1"),
-/// ])));
+/// assert_eq!(binary.parse(""), Ok(Span::new(0..0, "".to_string())));
+/// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, "0101".to_string())));
+/// assert_eq!(binary.parse("012"), Ok(Span::new(0..2, "01".to_string())));
 /// ```
 pub fn maybe_repeat<'i, 'p, P, E>(parser: P) -> BoxedParser<'i, 'p, Vec<Span<P::Value>>, E>
 where
@@ -349,15 +319,10 @@ where
 /// ]
 ///     .all_of()
 ///     .map(|mut v| v.pop().unwrap().take())
-///     .repeat();
+///     .repeat()
+///     .collect();
 ///
-/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, vec![
-///     Span::new(0..1, "h"),
-///     Span::new(1..2, "e"),
-///     Span::new(2..3, "l"),
-///     Span::new(3..4, "l"),
-///     Span::new(4..5, "o"),
-/// ])));
+/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
 /// ```
 pub fn reject<'i, 'p, P>(parser: P) -> BoxedParser<'i, 'p, (), ()>
@@ -383,15 +348,9 @@ where
 ///     ]
 ///     .all_of()
 ///     .map(|mut v| v.pop().unwrap().take())
-/// );
+/// ).collect();
 ///
-/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, vec![
-///     Span::new(0..1, "h"),
-///     Span::new(1..2, "e"),
-///     Span::new(2..3, "l"),
-///     Span::new(3..4, "l"),
-///     Span::new(4..5, "o"),
-/// ])));
+/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
 /// ```
 ///
