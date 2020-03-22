@@ -10,10 +10,10 @@ pub trait ParserExt {
     ///
     /// [`all_of`]: ../fn.all_of.html
     /// [`AllOf`]: ../expression/struct.AllOf.html
-    fn all_of<'a, 'b, P>(self) -> BoxedParser<'a, 'b, Vec<Span<P::Value>>, P::Error>
+    fn all_of<'i, 'p, P>(self) -> BoxedParser<'i, 'p, Vec<Span<P::Value>>, P::Error>
     where
-        Self: IntoIterator<Item = P> + Sized + 'b,
-        P: Parser<'a> + 'b,
+        Self: IntoIterator<Item = P> + Sized + 'p,
+        P: Parser<'i> + 'p,
     {
         all_of(self.into_iter().collect())
     }
@@ -24,9 +24,9 @@ pub trait ParserExt {
     ///
     /// [`check`]: ../fn.check.html
     /// [`Check`]: ../expression/struct.Check.html
-    fn check<'a, 'b>(self) -> BoxedParser<'a, 'b, (), Self::Error>
+    fn check<'i, 'p>(self) -> BoxedParser<'i, 'p, (), Self::Error>
     where
-        Self: Parser<'a> + Sized + 'b,
+        Self: Parser<'i> + Sized + 'p,
     {
         check(self)
     }
@@ -37,10 +37,10 @@ pub trait ParserExt {
     ///
     /// [`map`]: ../fn.map.html
     /// [`Map`]: ../expression/struct.Map.html
-    fn map<'a, 'b, F, U>(self, transform: F) -> BoxedParser<'a, 'b, U, Self::Error>
+    fn map<'i, 'p, F, U>(self, transform: F) -> BoxedParser<'i, 'p, U, Self::Error>
     where
-        Self: Parser<'a> + Sized + 'b,
-        F: Fn(Self::Value) -> U + 'b,
+        Self: Parser<'i> + Sized + 'p,
+        F: Fn(Self::Value) -> U + 'p,
     {
         map(self, transform)
     }
@@ -51,10 +51,10 @@ pub trait ParserExt {
     ///
     /// [`map_err`]: ../fn.map_err.html
     /// [`MapErr`]: ../expression/struct.MapErr.html
-    fn map_err<'a, 'b, F, U>(self, transform: F) -> BoxedParser<'a, 'b, Self::Value, U>
+    fn map_err<'i, 'p, F, U>(self, transform: F) -> BoxedParser<'i, 'p, Self::Value, U>
     where
-        Self: Parser<'a> + Sized + 'b,
-        F: Fn(Self::Error) -> U + 'b,
+        Self: Parser<'i> + Sized + 'p,
+        F: Fn(Self::Error) -> U + 'p,
     {
         map_err(self, transform)
     }
@@ -65,10 +65,10 @@ pub trait ParserExt {
     ///
     /// [`maybe`]: ../fn.maybe.html
     /// [`Maybe`]: ../expression/struct.Maybe.html
-    fn maybe<'a, 'b, E>(self) -> BoxedParser<'a, 'b, Option<Span<Self::Value>>, E>
+    fn maybe<'i, 'p, E>(self) -> BoxedParser<'i, 'p, Option<Span<Self::Value>>, E>
     where
-        Self: Parser<'a> + Sized + 'b,
-        E: 'b,
+        Self: Parser<'i> + Sized + 'p,
+        E: 'p,
     {
         maybe(self)
     }
@@ -79,10 +79,10 @@ pub trait ParserExt {
     ///
     /// [`maybe_repeat`]: ../fn.maybe_repeat.html
     /// [`MaybeRepeat`]: ../expression/struct.MaybeRepeat.html
-    fn maybe_repeat<'a, 'b, E>(self) -> BoxedParser<'a, 'b, Vec<Span<Self::Value>>, E>
+    fn maybe_repeat<'i, 'p, E>(self) -> BoxedParser<'i, 'p, Vec<Span<Self::Value>>, E>
     where
-        Self: Parser<'a> + Sized + 'b,
-        E: 'b,
+        Self: Parser<'i> + Sized + 'p,
+        E: 'p,
     {
         maybe_repeat(self)
     }
@@ -93,10 +93,10 @@ pub trait ParserExt {
     ///
     /// [`one_of`]: ../fn.one_of.html
     /// [`OneOf`]: ../expression/struct.OneOf.html
-    fn one_of<'a, 'b, P>(self) -> BoxedParser<'a, 'b, P::Value, Vec<Span<P::Error>>>
+    fn one_of<'i, 'p, P>(self) -> BoxedParser<'i, 'p, P::Value, Vec<Span<P::Error>>>
     where
-        Self: IntoIterator<Item = P> + Sized + 'b,
-        P: Parser<'a> + 'b,
+        Self: IntoIterator<Item = P> + Sized + 'p,
+        P: Parser<'i> + 'p,
     {
         one_of(self.into_iter().collect())
     }
@@ -108,9 +108,9 @@ pub trait ParserExt {
     ///
     /// [`reject`]: ../fn.reject.html
     /// [`Reject`]: ../expression/struct.Reject.html
-    fn reject<'a, 'b>(self) -> BoxedParser<'a, 'b, (), ()>
+    fn reject<'i, 'p>(self) -> BoxedParser<'i, 'p, (), ()>
     where
-        Self: Parser<'a> + Sized + 'b,
+        Self: Parser<'i> + Sized + 'p,
     {
         reject(self)
     }
@@ -122,16 +122,16 @@ pub trait ParserExt {
     ///
     /// [`repeat`]: ../fn.repeat.html
     /// [`Repeat`]: ../expression/struct.Repeat.html
-    fn repeat<'a, 'b>(self) -> BoxedParser<'a, 'b, Vec<Span<Self::Value>>, Self::Error>
+    fn repeat<'i, 'p>(self) -> BoxedParser<'i, 'p, Vec<Span<Self::Value>>, Self::Error>
     where
-        Self: Parser<'a> + Sized + 'b,
+        Self: Parser<'i> + Sized + 'p,
     {
         repeat(self)
     }
 }
 
-impl<'a, P> ParserExt for P where P: Parser<'a> {}
-impl<'a, P> ParserExt for Vec<P> where P: Parser<'a> {}
+impl<'i, P> ParserExt for P where P: Parser<'i> {}
+impl<'i, P> ParserExt for Vec<P> where P: Parser<'i> {}
 
 #[cfg(test)]
 mod tests {

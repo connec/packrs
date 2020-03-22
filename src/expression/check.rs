@@ -4,9 +4,9 @@ use crate::span::Span;
 /// An expression that tries to match a sub-expression, producing no result and consuming no input.
 pub struct Check<P>(pub(crate) P);
 
-impl<'a, P> Parser<'a> for Check<P>
+impl<'i, P> Parser<'i> for Check<P>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
 {
     type Value = ();
     type Error = P::Error;
@@ -14,7 +14,7 @@ where
     ///
     /// If matching the sub-expression fails, the failure is returned verbatim. If the
     /// sub-expression succeeds, the value is discarded and an empty `Span` is returned.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map(|_| Span::new(0..0, ()))
     }
 }

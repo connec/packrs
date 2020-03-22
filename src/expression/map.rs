@@ -4,9 +4,9 @@ use crate::span::Span;
 /// An expression that transforms a successful sub-expression result.
 pub struct Map<P, F>(pub(crate) P, pub(crate) F);
 
-impl<'a, P, F, U> Parser<'a> for Map<P, F>
+impl<'i, P, F, U> Parser<'i> for Map<P, F>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
     F: Fn(P::Value) -> U,
 {
     type Value = U;
@@ -14,7 +14,7 @@ where
     /// Attempt to parse the sub-expression, and map the result on success.
     ///
     /// If the sub-expression fails, the failure is returned verbatim.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map(|value| value.map(&self.1))
     }
 }

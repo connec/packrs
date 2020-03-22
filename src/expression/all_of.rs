@@ -4,9 +4,9 @@ use crate::span::Span;
 /// An expression for parsing a sequence of sub-expressions.
 pub struct AllOf<P>(pub(crate) Vec<P>);
 
-impl<'a, P> Parser<'a> for AllOf<P>
+impl<'i, P> Parser<'i> for AllOf<P>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
 {
     type Value = Vec<Span<P::Value>>;
     type Error = P::Error;
@@ -16,7 +16,7 @@ where
     /// Parsing succeeds if all sub-expressions succeed, and the result is a `Vec` of the
     /// sub-expression results. If any sub-expression fails, the failure is returned and any results
     /// up to that point are dropped.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut start = 0;
         let mut end = 0;
         let mut values = Vec::with_capacity(self.0.len());

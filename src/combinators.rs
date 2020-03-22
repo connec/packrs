@@ -8,7 +8,7 @@ use crate::span::Span;
 ///
 /// The lifetimes on this are complicated by the need to distinguish the lifetime of the parser
 /// (`'b`) from the lifetime of the input (`'a`).
-pub type BoxedParser<'a, 'b, V, E> = Box<dyn Parser<'a, Value = V, Error = E> + 'b>;
+pub type BoxedParser<'i, 'p, V, E> = Box<dyn Parser<'i, Value = V, Error = E> + 'p>;
 
 /// Create a parser that will evaluate the given parsers in order against an input.
 ///
@@ -37,9 +37,9 @@ pub type BoxedParser<'a, 'b, V, E> = Box<dyn Parser<'a, Value = V, Error = E> + 
 ///
 /// [`map`]: fn.map.html
 /// [`map_err`]: fn.map_err.html
-pub fn all_of<'a, 'b, P>(parsers: Vec<P>) -> BoxedParser<'a, 'b, Vec<Span<P::Value>>, P::Error>
+pub fn all_of<'i, 'p, P>(parsers: Vec<P>) -> BoxedParser<'i, 'p, Vec<Span<P::Value>>, P::Error>
 where
-    P: Parser<'a> + 'b,
+    P: Parser<'i> + 'p,
 {
     Box::new(AllOf(parsers))
 }
@@ -71,7 +71,7 @@ where
 /// ])));
 /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
 /// ```
-pub fn any<'a, 'b>() -> BoxedParser<'a, 'b, &'a str, UnexpectedEndOfInput> {
+pub fn any<'i, 'p>() -> BoxedParser<'i, 'p, &'i str, UnexpectedEndOfInput> {
     Box::new(Any)
 }
 
@@ -88,9 +88,9 @@ pub fn any<'a, 'b>() -> BoxedParser<'a, 'b, &'a str, UnexpectedEndOfInput> {
 /// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
 /// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
 /// ```
-pub fn check<'a, 'b, P>(parser: P) -> BoxedParser<'a, 'b, (), P::Error>
+pub fn check<'i, 'p, P>(parser: P) -> BoxedParser<'i, 'p, (), P::Error>
 where
-    P: Parser<'a> + 'b,
+    P: Parser<'i> + 'p,
 {
     Box::new(Check(parser))
 }
@@ -117,7 +117,7 @@ where
 /// ])));
 /// assert_eq!(hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
 /// ```
-pub fn chr<'a, 'b>(char: char) -> BoxedParser<'a, 'b, &'a str, ExpectedChar> {
+pub fn chr<'i, 'p>(char: char) -> BoxedParser<'i, 'p, &'i str, ExpectedChar> {
     Box::new(Chr(char))
 }
 
@@ -155,10 +155,10 @@ pub fn chr<'a, 'b>(char: char) -> BoxedParser<'a, 'b, &'a str, ExpectedChar> {
 ///     Span::new(0..2, ExpectedChar('/')),
 /// ])));
 /// ```
-pub fn map<'a, 'b, P, F, V>(parser: P, transform: F) -> BoxedParser<'a, 'b, V, P::Error>
+pub fn map<'i, 'p, P, F, V>(parser: P, transform: F) -> BoxedParser<'i, 'p, V, P::Error>
 where
-    P: Parser<'a> + 'b,
-    F: Fn(P::Value) -> V + 'b,
+    P: Parser<'i> + 'p,
+    F: Fn(P::Value) -> V + 'p,
 {
     Box::new(Map(parser, transform))
 }
@@ -197,10 +197,10 @@ where
 /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
 /// assert_eq!(op.parse("÷"), Err(Span::new(0..2, InvalidOp)));
 /// ```
-pub fn map_err<'a, 'b, P, F, E>(parser: P, transform: F) -> BoxedParser<'a, 'b, P::Value, E>
+pub fn map_err<'i, 'p, P, F, E>(parser: P, transform: F) -> BoxedParser<'i, 'p, P::Value, E>
 where
-    P: Parser<'a> + 'b,
-    F: Fn(P::Error) -> E + 'b,
+    P: Parser<'i> + 'p,
+    F: Fn(P::Error) -> E + 'p,
 {
     Box::new(MapErr(parser, transform))
 }
@@ -234,10 +234,10 @@ where
 /// ])));
 /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
 /// ```
-pub fn maybe<'a, 'b, P, E>(parser: P) -> BoxedParser<'a, 'b, Option<Span<P::Value>>, E>
+pub fn maybe<'i, 'p, P, E>(parser: P) -> BoxedParser<'i, 'p, Option<Span<P::Value>>, E>
 where
-    P: Parser<'a> + 'b,
-    E: 'b,
+    P: Parser<'i> + 'p,
+    E: 'p,
 {
     Box::new(Maybe(parser, PhantomData))
 }
@@ -265,10 +265,10 @@ where
 ///     Span::new(1..2, "1"),
 /// ])));
 /// ```
-pub fn maybe_repeat<'a, 'b, P, E>(parser: P) -> BoxedParser<'a, 'b, Vec<Span<P::Value>>, E>
+pub fn maybe_repeat<'i, 'p, P, E>(parser: P) -> BoxedParser<'i, 'p, Vec<Span<P::Value>>, E>
 where
-    P: Parser<'a> + 'b,
-    E: 'b,
+    P: Parser<'i> + 'p,
+    E: 'p,
 {
     Box::new(MaybeRepeat(parser, PhantomData))
 }
@@ -283,9 +283,9 @@ where
 /// assert_eq!(nothing::<()>().parse(""), Ok(Span::new(0..0, ())));
 /// assert_eq!(nothing::<()>().parse("whatever"), Ok(Span::new(0..0, ())));
 /// ```
-pub fn nothing<'a, 'b, E>() -> BoxedParser<'a, 'b, (), E>
+pub fn nothing<'i, 'p, E>() -> BoxedParser<'i, 'p, (), E>
 where
-    E: 'b,
+    E: 'p,
 {
     Box::new(Nothing(PhantomData))
 }
@@ -329,9 +329,9 @@ where
 ///
 /// [`map`]: fn.map.html
 /// [`map_err`]: fn.map_err.html
-pub fn one_of<'a, 'b, P>(parsers: Vec<P>) -> BoxedParser<'a, 'b, P::Value, Vec<Span<P::Error>>>
+pub fn one_of<'i, 'p, P>(parsers: Vec<P>) -> BoxedParser<'i, 'p, P::Value, Vec<Span<P::Error>>>
 where
-    P: Parser<'a> + 'b,
+    P: Parser<'i> + 'p,
 {
     Box::new(OneOf(parsers))
 }
@@ -362,9 +362,9 @@ where
 /// ])));
 /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
 /// ```
-pub fn reject<'a, 'b, P>(parser: P) -> BoxedParser<'a, 'b, (), ()>
+pub fn reject<'i, 'p, P>(parser: P) -> BoxedParser<'i, 'p, (), ()>
 where
-    P: Parser<'a> + 'b,
+    P: Parser<'i> + 'p,
 {
     Box::new(Reject(parser))
 }
@@ -398,9 +398,9 @@ where
 /// ```
 ///
 /// [`maybe_repeat`]: fn.maybe_repeat.html
-pub fn repeat<'a, 'b, P>(parser: P) -> BoxedParser<'a, 'b, Vec<Span<P::Value>>, P::Error>
+pub fn repeat<'i, 'p, P>(parser: P) -> BoxedParser<'i, 'p, Vec<Span<P::Value>>, P::Error>
 where
-    P: Parser<'a> + 'b,
+    P: Parser<'i> + 'p,
 {
     Box::new(Repeat(parser))
 }

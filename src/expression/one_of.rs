@@ -6,9 +6,9 @@ use crate::span::Span;
 /// An expression that returns the first successful match from a sequence of sub-expressions.
 pub struct OneOf<P>(pub(crate) Vec<P>);
 
-impl<'a, P> Parser<'a> for OneOf<P>
+impl<'i, P> Parser<'i> for OneOf<P>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
 {
     type Value = P::Value;
     type Error = Vec<Span<P::Error>>;
@@ -18,7 +18,7 @@ where
     /// Parsing succeeds if any sub-expression succeeds, and the result is the result of the
     /// successful sub-expression (any preceeding failures are dropped). If all sub-expressions
     /// fail, all the failures are returned.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut start = usize::max_value();
         let mut end = 0;
         let mut errors = Vec::new();

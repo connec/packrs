@@ -6,7 +6,7 @@ use crate::span::Span;
 /// An expression for parsing nothing.
 pub struct Nothing<E>(pub(crate) PhantomData<E>);
 
-impl<'a, E> Parser<'a> for Nothing<E> {
+impl<'i, E> Parser<'i> for Nothing<E> {
     type Value = ();
     type Error = E;
 
@@ -14,7 +14,7 @@ impl<'a, E> Parser<'a> for Nothing<E> {
     ///
     /// This always succeeds without consuming input. It can be useful in combinators when 'nothing'
     /// is an allowed value.
-    fn parse(&self, _input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, _input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         Ok(Span::new(0..0, ()))
     }
 }

@@ -6,9 +6,9 @@ use crate::span::Span;
 /// An expression that tries to match a sub-expression, and succeeds regardless.
 pub struct Maybe<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
-impl<'a, P, E> Parser<'a> for Maybe<P, E>
+impl<'i, P, E> Parser<'i> for Maybe<P, E>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
 {
     type Value = Option<Span<P::Value>>;
     type Error = E;
@@ -16,7 +16,7 @@ where
     ///
     /// This always succeeds, returning `Some` containing the successful result or `None` if the
     /// sub-expression fails.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         Ok(match self.0.parse(input) {
             Ok(value) => Span::new(value.start()..value.end(), Some(value)),
             Err(_) => Span::new(0..0, None),

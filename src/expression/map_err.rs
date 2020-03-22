@@ -4,9 +4,9 @@ use crate::span::Span;
 /// An expression that transforms a failed sub-expression result.
 pub struct MapErr<P, F>(pub(crate) P, pub(crate) F);
 
-impl<'a, P, F, U> Parser<'a> for MapErr<P, F>
+impl<'i, P, F, U> Parser<'i> for MapErr<P, F>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
     F: Fn(P::Error) -> U,
 {
     type Value = P::Value;
@@ -14,7 +14,7 @@ where
     /// Attempt to parse the sub-expression, and map the result on failure.
     ///
     /// If the sub-expression succeeds, the result is returned verbatim.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map_err(|value| value.map(&self.1))
     }
 }

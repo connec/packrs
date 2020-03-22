@@ -1,7 +1,7 @@
 use crate::span::Span;
 
 /// A trait implemented by parsing expressions.
-pub trait Parser<'a> {
+pub trait Parser<'i> {
     /// The type returned in successful parse results.
     type Value;
 
@@ -9,31 +9,31 @@ pub trait Parser<'a> {
     type Error;
 
     /// Parse a given input and produce a result.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>>;
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>>;
 }
 
-impl<'a, P> Parser<'a> for &P
+impl<'i, P> Parser<'i> for &P
 where
-    P: Parser<'a> + ?Sized,
+    P: Parser<'i> + ?Sized,
 {
     type Value = P::Value;
 
     type Error = P::Error;
 
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         (*self).parse(input)
     }
 }
 
-impl<'a, P> Parser<'a> for Box<P>
+impl<'i, P> Parser<'i> for Box<P>
 where
-    P: Parser<'a> + ?Sized,
+    P: Parser<'i> + ?Sized,
 {
     type Value = P::Value;
 
     type Error = P::Error;
 
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.as_ref().parse(input)
     }
 }

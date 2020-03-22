@@ -11,8 +11,8 @@ pub struct ExpectedChar(
 /// An expression for parsing a specific character.
 pub struct Chr(pub(crate) char);
 
-impl<'a> Parser<'a> for Chr {
-    type Value = &'a str;
+impl<'i> Parser<'i> for Chr {
+    type Value = &'i str;
     type Error = ExpectedChar;
 
     /// Parse a specific character from an `&str`.
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> for Chr {
     /// matched slice of the input. Otherwise, an [`ExpectedChar`] error is returned.
     ///
     /// [`ExpectedChar`]: enum.Error.html#variant.ExpectedChar
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let actual = input
             .chars()
             .next()

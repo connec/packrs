@@ -6,9 +6,9 @@ use crate::span::Span;
 /// An expression that matches a sub-expression as many times as it can.
 pub struct MaybeRepeat<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
-impl<'a, P, E> Parser<'a> for MaybeRepeat<P, E>
+impl<'i, P, E> Parser<'i> for MaybeRepeat<P, E>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
 {
     type Value = Vec<Span<P::Value>>;
     type Error = E;
@@ -16,7 +16,7 @@ where
     /// results.
     ///
     /// Parsing never fails.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut end = 0;
         let mut values = Vec::new();
 

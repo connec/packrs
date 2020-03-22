@@ -78,11 +78,11 @@ impl TestExpr {
     }
 }
 
-impl<'a> Parser<'a> for TestExpr {
+impl<'i> Parser<'i> for TestExpr {
     type Value = TestValue;
     type Error = TestError;
 
-    fn parse(&self, _input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, _input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.config().calls.set(self.config().calls() + 1);
         match self {
             ParseMatch(config, max_calls) => {

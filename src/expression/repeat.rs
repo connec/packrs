@@ -4,9 +4,9 @@ use crate::span::Span;
 /// An expression that matches a sub-expression at least once, then as many times as it can.
 pub struct Repeat<P>(pub(crate) P);
 
-impl<'a, P> Parser<'a> for Repeat<P>
+impl<'i, P> Parser<'i> for Repeat<P>
 where
-    P: Parser<'a>,
+    P: Parser<'i>,
 {
     type Value = Vec<Span<P::Value>>;
     type Error = P::Error;
@@ -14,7 +14,7 @@ where
     /// results.
     ///
     /// This fails if the first attempt to match the sub-expression fails, returning the failure.
-    fn parse(&self, input: &'a str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let value = self.0.parse(input)?;
         let mut end = value.end();
         let mut values = vec![value];
