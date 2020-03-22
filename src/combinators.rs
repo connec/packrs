@@ -52,15 +52,15 @@ where
 /// When given an empty input, the result will be an `Err` with `UnexpectedEndOfInput`.
 ///
 /// ```
-/// use packrs::{ParserExt, Span, UnexpectedEndOfInput, all_of, any, chr, reject, repeat};
+/// use packrs::{ParserExt, Span, UnexpectedEndOfInput, any, chr};
 ///
-/// let first_word = repeat(
-///     all_of(vec![
-///         reject(chr(' ')).map(|_| "").map_err(|_| UnexpectedEndOfInput),
-///         any(),
-///     ])
+/// let first_word = vec![
+///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput),
+///     any(),
+/// ]
+///     .all_of()
 ///     .map(|mut v| v.pop().unwrap().take())
-/// );
+///     .repeat();
 ///
 /// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, vec![
 ///     Span::new(0..1, "h"),
@@ -129,7 +129,7 @@ pub fn chr<'a, 'b>(char: char) -> BoxedParser<'a, 'b, &'a str, ExpectedChar> {
 /// parse failure.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Span, chr, map, one_of};
+/// use packrs::{ExpectedChar, ParserExt, Span, chr, map};
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Op {
@@ -139,12 +139,12 @@ pub fn chr<'a, 'b>(char: char) -> BoxedParser<'a, 'b, &'a str, ExpectedChar> {
 ///     Div,
 /// }
 ///
-/// let op = one_of(vec![
+/// let op = vec![
 ///     map(chr('+'), |_| Op::Add),
 ///     map(chr('-'), |_| Op::Sub),
 ///     map(chr('*'), |_| Op::Mul),
 ///     map(chr('/'), |_| Op::Div),
-/// ]);
+/// ].one_of();
 ///
 /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
 /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
@@ -170,7 +170,7 @@ where
 /// the given parser fails, the result will be an `Err` with `transform(<parse failure>)`.
 ///
 /// ```
-/// use packrs::{ExpectedChar, ParserExt, Span, chr, map_err, one_of};
+/// use packrs::{ExpectedChar, ParserExt, Span, chr, map_err};
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Op {
@@ -184,12 +184,12 @@ where
 /// struct InvalidOp;
 ///
 /// let op = map_err(
-///     one_of(vec![
+///     vec![
 ///         chr('+').map(|_| Op::Add),
 ///         chr('-').map(|_| Op::Sub),
 ///         chr('*').map(|_| Op::Mul),
 ///         chr('/').map(|_| Op::Div),
-///     ]),
+///     ].one_of(),
 ///     |_| InvalidOp
 /// );
 ///
@@ -211,18 +211,18 @@ where
 /// `Some(<parsed value>)`. If the given parser fails, this will contain `None`.
 ///
 /// ```
-/// use packrs::{ExpectedChar, ParserExt, Span, all_of, chr, maybe};
+/// use packrs::{ExpectedChar, ParserExt, Span, chr, maybe};
 ///
-/// let expr = all_of(vec![
+/// let expr = vec![
 ///     chr('1').map(|s| s.to_string()),
-///     maybe(all_of(vec![chr('+'), chr('1')]).map(|v| {
+///     maybe(vec![chr('+'), chr('1')].all_of().map(|v| {
 ///         v.into_iter().map(|s| s.take()).collect::<String>()
 ///     }))
 ///         .map(|opt| match opt {
 ///             Some(span) => span.take(),
 ///             None => "".to_string(),
 ///         })
-/// ]);
+/// ].all_of();
 ///
 /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, vec![
 ///     Span::new(0..1, "1".to_string()),
@@ -249,9 +249,9 @@ where
 /// result will be `Ok(vec![])`.
 ///
 /// ```
-/// use packrs::{Span, chr, maybe_repeat, one_of};
+/// use packrs::{ParserExt, Span, chr, maybe_repeat};
 ///
-/// let binary = maybe_repeat::<_, ()>(one_of(vec![chr('0'), chr('1')]));
+/// let binary = maybe_repeat::<_, ()>(vec![chr('0'), chr('1')].one_of());
 ///
 /// assert_eq!(binary.parse(""), Ok(Span::new(0..0, vec![])));
 /// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, vec![
@@ -343,15 +343,15 @@ where
 /// fails, the result will be `Ok(())`.
 ///
 /// ```
-/// use packrs::{ParserExt, Span, UnexpectedEndOfInput, all_of, any, chr, reject, repeat};
+/// use packrs::{ParserExt, Span, UnexpectedEndOfInput, any, chr, reject};
 ///
-/// let first_word = repeat(
-///     all_of(vec![
-///         reject(chr(' ')).map(|_| "").map_err(|_| UnexpectedEndOfInput),
-///         any(),
-///     ])
-///     .map(|mut v| v.pop().unwrap().take()),
-/// );
+/// let first_word = vec![
+///     reject(chr(' ')).map(|_| "").map_err(|_| UnexpectedEndOfInput),
+///     any(),
+/// ]
+///     .all_of()
+///     .map(|mut v| v.pop().unwrap().take())
+///     .repeat();
 ///
 /// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, vec![
 ///     Span::new(0..1, "h"),
@@ -376,13 +376,14 @@ where
 /// result will be `Ok` with a `Vec` of the parse results of successful evaluations.
 ///
 /// ```
-/// use packrs::{ParserExt, Span, UnexpectedEndOfInput, all_of, any, chr, reject, repeat};
+/// use packrs::{ParserExt, Span, UnexpectedEndOfInput, any, chr, repeat};
 ///
 /// let first_word = repeat(
-///     all_of(vec![
-///         reject(chr(' ')).map(|_| "").map_err(|_| UnexpectedEndOfInput),
+///     vec![
+///         chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput),
 ///         any(),
-///     ])
+///     ]
+///     .all_of()
 ///     .map(|mut v| v.pop().unwrap().take())
 /// );
 ///
@@ -406,8 +407,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::parser_ext::ParserExt;
-
     use super::*;
 
     #[test]
@@ -431,19 +430,23 @@ mod tests {
             InvalidOperator,
         }
 
-        let num = one_of(vec![
-            chr('1').map(|_| Token::Num(1)),
-            chr('2').map(|_| Token::Num(2)),
-        ])
-        .map_err(|_| CalcError::InvalidNumber);
+        let num = map_err(
+            one_of(vec![
+                map(chr('1'), |_| Token::Num(1)),
+                map(chr('2'), |_| Token::Num(2)),
+            ]),
+            |_| CalcError::InvalidNumber,
+        );
 
-        let op = one_of(vec![
-            chr('+').map(|_| Token::OpAdd),
-            chr('-').map(|_| Token::OpSub),
-        ])
-        .map_err(|_| CalcError::InvalidOperator);
+        let op = map_err(
+            one_of(vec![
+                map(chr('+'), |_| Token::OpAdd),
+                map(chr('-'), |_| Token::OpSub),
+            ]),
+            |_| CalcError::InvalidOperator,
+        );
 
-        let add = all_of(vec![&num, &op, &num]).map(|mut seq| {
+        let add = map(all_of(vec![&num, &op, &num]), |mut seq| {
             let mut seq = seq.drain(0..3);
             let a = seq.next().unwrap();
             let op = seq.next().unwrap().take();
@@ -461,10 +464,12 @@ mod tests {
 
             Expr::Add(a, b)
         });
-        let expr_num = (&num).map(|token| match token {
+
+        let expr_num = map(&num, |token| match token {
             Token::Num(n) => Expr::Num(n),
             _ => unreachable!(),
         });
+
         let expr = one_of(vec![&add, &expr_num]);
 
         assert_eq!(expr.parse("1"), Ok(Span::new(0..1, Expr::Num(1))));
