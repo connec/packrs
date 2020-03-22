@@ -81,12 +81,12 @@ pub fn any<'i, 'p>() -> BoxedParser<'i, 'p, &'i str, UnexpectedEndOfInput> {
 /// parser fails, the result will be an `Err` with the parse failure.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Span, all_of, check, chr};
+/// use packrs::{ExpectedString, Span, check, string};
 ///
-/// let check_hello = check(all_of("hello".chars().map(chr).collect()));
+/// let check_hello = check(string("hello"));
 ///
 /// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
-/// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
+/// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
 /// ```
 pub fn check<'i, 'p, P>(parser: P) -> BoxedParser<'i, 'p, (), P::Error>
 where
@@ -211,26 +211,24 @@ where
 /// `Some(<parsed value>)`. If the given parser fails, this will contain `None`.
 ///
 /// ```
-/// use packrs::{ExpectedChar, ParserExt, Span, chr, maybe};
+/// use packrs::{ExpectedChar, ParserExt, Span, chr, maybe, string};
 ///
 /// let expr = vec![
-///     chr('1').map(|s| s.to_string()),
-///     maybe(vec![chr('+'), chr('1')].all_of().map(|v| {
-///         v.into_iter().map(|s| s.take()).collect::<String>()
-///     }))
+///     chr('1'),
+///     maybe(string("+1"))
 ///         .map(|opt| match opt {
 ///             Some(span) => span.take(),
-///             None => "".to_string(),
+///             None => "",
 ///         })
 /// ].all_of();
 ///
 /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, vec![
-///     Span::new(0..1, "1".to_string()),
-///     Span::new(1..1, "".to_string())
+///     Span::new(0..1, "1"),
+///     Span::new(1..1, "")
 /// ])));
 /// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, vec![
-///     Span::new(0..1, "1".to_string()),
-///     Span::new(1..3, "+1".to_string())
+///     Span::new(0..1, "1"),
+///     Span::new(1..3, "+1")
 /// ])));
 /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
 /// ```
@@ -403,6 +401,27 @@ where
     P: Parser<'i> + 'p,
 {
     Box::new(Repeat(parser))
+}
+
+/// Create a parser that will match the given string at the beginning on an input.
+///
+/// When given an input that starts with the given string, the result will be `Ok` with a subslice
+/// of the input containing the matched string. When given an input that does not start with the
+/// given string, the result will be an `Err` with `ExpectedString(string)`.
+///
+/// ```
+/// use packrs::{ExpectedString, Span, check, string};
+///
+/// let check_hello = check(string("hello"));
+///
+/// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
+/// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
+/// ```
+pub fn string<'i, 'p, 's>(string: &'s str) -> BoxedParser<'i, 'p, &'i str, ExpectedString>
+where
+    's: 'p,
+{
+    Box::new(String(string))
 }
 
 #[cfg(test)]

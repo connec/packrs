@@ -14,6 +14,7 @@ mod nothing;
 mod one_of;
 mod reject;
 mod repeat;
+mod string;
 
 #[cfg(test)]
 mod test_expr;
@@ -30,6 +31,7 @@ pub use self::nothing::*;
 pub use self::one_of::*;
 pub use self::reject::*;
 pub use self::repeat::*;
+pub use self::string::*;
 
 #[cfg(test)]
 mod tests {
