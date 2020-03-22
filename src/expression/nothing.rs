@@ -1,14 +1,14 @@
-use core::convert::Infallible;
+use core::marker::PhantomData;
 
 use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression for parsing nothing.
-pub struct Nothing;
+pub struct Nothing<E>(pub(crate) PhantomData<E>);
 
-impl<'a> Parser<'a> for Nothing {
+impl<'a, E> Parser<'a> for Nothing<E> {
     type Value = ();
-    type Error = Infallible;
+    type Error = E;
 
     /// Parse nothing.
     ///
@@ -21,6 +21,7 @@ impl<'a> Parser<'a> for Nothing {
 
 #[cfg(test)]
 mod tests {
+    use core::marker::PhantomData;
     use quickcheck_macros::quickcheck;
 
     use crate::parser::Parser;
@@ -30,6 +31,9 @@ mod tests {
 
     #[quickcheck]
     fn infallible(input: String) {
-        assert_eq!(Nothing.parse(&input), Ok(Span::new(0..0, ())));
+        assert_eq!(
+            Nothing::<()>(PhantomData).parse(&input),
+            Ok(Span::new(0..0, ()))
+        );
     }
 }

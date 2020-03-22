@@ -1,17 +1,17 @@
-use core::convert::Infallible;
+use core::marker::PhantomData;
 
 use crate::parser::Parser;
 use crate::span::Span;
 
 /// An expression that tries to match a sub-expression, and succeeds regardless.
-pub struct Maybe<P>(pub(crate) P);
+pub struct Maybe<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
-impl<'a, P> Parser<'a> for Maybe<P>
+impl<'a, P, E> Parser<'a> for Maybe<P, E>
 where
     P: Parser<'a>,
 {
     type Value = Option<Span<P::Value>>;
-    type Error = Infallible;
+    type Error = E;
     /// Attempt to parse the sub-expression and succeed with an `Option`, depending on the result.
     ///
     /// This always succeeds, returning `Some` containing the successful result or `None` if the
@@ -26,6 +26,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use core::marker::PhantomData;
     use quickcheck_macros::quickcheck;
 
     use crate::expression::test_expr::*;
@@ -37,7 +38,7 @@ mod tests {
     #[test]
     fn p_match() {
         assert_eq!(
-            Maybe(TestExpr::ok(83..98)).parse("hello"),
+            Maybe::<_, ()>(TestExpr::ok(83..98), PhantomData).parse("hello"),
             Ok(Span::new(83..98, Some(Span::new(83..98, TestValue))))
         );
     }
@@ -45,7 +46,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            Maybe(TestExpr::err(5..458)).parse("hello"),
+            Maybe::<_, ()>(TestExpr::err(5..458), PhantomData).parse("hello"),
             Ok(Span::new(0..0, None))
         );
     }
@@ -53,7 +54,7 @@ mod tests {
     #[quickcheck]
     fn parse(p: TestExpr, input: String) {
         assert_eq!(
-            Maybe(&p).parse(&input),
+            Maybe::<_, ()>(&p, PhantomData).parse(&input),
             Ok(match p {
                 ParseMatch(config, _) =>
                     Span::new(config.range(), Some(Span::new(config.range(), TestValue))),

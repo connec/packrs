@@ -1,4 +1,4 @@
-use core::convert::Infallible;
+use core::marker::PhantomData;
 
 use crate::expression::*;
 use crate::parser::Parser;
@@ -222,7 +222,6 @@ where
 ///             Some(span) => span.take(),
 ///             None => "".to_string(),
 ///         })
-///         .map_err(|_| unreachable!()),
 /// ]);
 ///
 /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, vec![
@@ -235,11 +234,12 @@ where
 /// ])));
 /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
 /// ```
-pub fn maybe<'a, 'b, P>(parser: P) -> BoxedParser<'a, 'b, Option<Span<P::Value>>, Infallible>
+pub fn maybe<'a, 'b, P, E>(parser: P) -> BoxedParser<'a, 'b, Option<Span<P::Value>>, E>
 where
     P: Parser<'a> + 'b,
+    E: 'b,
 {
-    Box::new(Maybe(parser))
+    Box::new(Maybe(parser, PhantomData))
 }
 
 /// Create a parser that will evaluate the given parser repeatedly, until it fails.
@@ -251,7 +251,7 @@ where
 /// ```
 /// use packrs::{Span, chr, maybe_repeat, one_of};
 ///
-/// let binary = maybe_repeat(one_of(vec![chr('0'), chr('1')]));
+/// let binary = maybe_repeat::<_, ()>(one_of(vec![chr('0'), chr('1')]));
 ///
 /// assert_eq!(binary.parse(""), Ok(Span::new(0..0, vec![])));
 /// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, vec![
@@ -265,11 +265,12 @@ where
 ///     Span::new(1..2, "1"),
 /// ])));
 /// ```
-pub fn maybe_repeat<'a, 'b, P>(parser: P) -> BoxedParser<'a, 'b, Vec<Span<P::Value>>, Infallible>
+pub fn maybe_repeat<'a, 'b, P, E>(parser: P) -> BoxedParser<'a, 'b, Vec<Span<P::Value>>, E>
 where
     P: Parser<'a> + 'b,
+    E: 'b,
 {
-    Box::new(MaybeRepeat(parser))
+    Box::new(MaybeRepeat(parser, PhantomData))
 }
 
 /// Create a parser that always succeeds, consuming no input and producing no values.
@@ -279,11 +280,14 @@ where
 /// ```
 /// use packrs::{Span, nothing};
 ///
-/// assert_eq!(nothing().parse(""), Ok(Span::new(0..0, ())));
-/// assert_eq!(nothing().parse("whatever"), Ok(Span::new(0..0, ())));
+/// assert_eq!(nothing::<()>().parse(""), Ok(Span::new(0..0, ())));
+/// assert_eq!(nothing::<()>().parse("whatever"), Ok(Span::new(0..0, ())));
 /// ```
-pub fn nothing<'a, 'b>() -> BoxedParser<'a, 'b, (), Infallible> {
-    Box::new(Nothing)
+pub fn nothing<'a, 'b, E>() -> BoxedParser<'a, 'b, (), E>
+where
+    E: 'b,
+{
+    Box::new(Nothing(PhantomData))
 }
 
 /// Create a parser that evaluates the given parsers in order, returning the first success.

@@ -1,17 +1,17 @@
-use core::convert::Infallible;
+use core::marker::PhantomData;
 
 use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
 /// An expression that matches a sub-expression as many times as it can.
-pub struct MaybeRepeat<P>(pub(crate) P);
+pub struct MaybeRepeat<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
-impl<'a, P> Parser<'a> for MaybeRepeat<P>
+impl<'a, P, E> Parser<'a> for MaybeRepeat<P, E>
 where
     P: Parser<'a>,
 {
     type Value = Vec<Span<P::Value>>;
-    type Error = Infallible;
+    type Error = E;
     /// Repeatedly parse the sub-expression until it fails, returning an array of the sucessful
     /// results.
     ///
@@ -32,6 +32,7 @@ where
 #[cfg(test)]
 mod tests {
     use core::iter::repeat;
+    use core::marker::PhantomData;
     use core::ops::Range;
     use quickcheck::{Arbitrary, Gen};
     use quickcheck_macros::quickcheck;
@@ -45,7 +46,7 @@ mod tests {
     #[test]
     fn p_match() {
         assert_eq!(
-            MaybeRepeat(TestExpr::ok_iters(0..1, 100))
+            MaybeRepeat::<_, ()>(TestExpr::ok_iters(0..1, 100), PhantomData)
                 .parse(&repeat('a').take(100).collect::<String>()[..]),
             Ok(Span::new(
                 0..100,
@@ -61,7 +62,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            MaybeRepeat(TestExpr::err(77..367)).parse("whatever"),
+            MaybeRepeat::<_, ()>(TestExpr::err(77..367), PhantomData).parse("whatever"),
             Ok(Span::new(0..0, vec![]))
         );
     }
@@ -87,7 +88,7 @@ mod tests {
     #[quickcheck]
     fn parse(TestData((expr, input)): TestData) {
         assert_eq!(
-            MaybeRepeat(&expr).parse(&input),
+            MaybeRepeat::<_, ()>(&expr, PhantomData).parse(&input),
             match expr {
                 ParseMatch(config, iters) => {
                     let segment = config.range().end;
