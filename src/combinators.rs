@@ -103,6 +103,47 @@ pub fn chr<'i, 'p>(char: char) -> BoxedParser<'i, 'p, &'i str, ExpectedChar> {
     Box::new(Chr(char))
 }
 
+/// Create a parser that matches at the end of an input.
+///
+/// When given an empty input, the result will be `Ok(())`. When given a non-empty input the result
+/// will be an `Err` with `ExpectedEndOfInput`.
+///
+/// ```
+/// use packrs::{ExpectedEndOfInput, ParserExt, Span, UnexpectedEndOfInput, any, end_of_input};
+///
+/// #[derive(Debug, PartialEq)]
+/// enum Error {
+///     ExpectedEndOfInput,
+///     UnexpectedEndOfInput,
+/// }
+///
+/// impl From<ExpectedEndOfInput> for Error {
+///     fn from(_: ExpectedEndOfInput) -> Self {
+///         Error::ExpectedEndOfInput
+///     }
+/// }
+///
+/// impl From<UnexpectedEndOfInput> for Error {
+///     fn from(_: UnexpectedEndOfInput) -> Self {
+///         Error::UnexpectedEndOfInput
+///     }
+/// }
+///
+/// let one_char = vec![
+///     any().map_err(|err| err.into()),
+///     end_of_input().map(|_| "").map_err(|err| err.into()),
+/// ]
+///     .all_of()
+///     .collect();
+///
+/// assert_eq!(one_char.parse(""), Err(Span::new(0..0, Error::UnexpectedEndOfInput)));
+/// assert_eq!(one_char.parse("💩"), Ok(Span::new(0..4, "💩".to_string())));
+/// assert_eq!(one_char.parse("नि"), Err(Span::new(3..6, Error::ExpectedEndOfInput)));
+/// ```
+pub fn end_of_input<'i, 'p>() -> BoxedParser<'i, 'p, (), ExpectedEndOfInput> {
+    Box::new(EndOfInput)
+}
+
 /// Create a parser that will evaluate the given parser, and transform a successful result with the
 /// given function.
 ///
