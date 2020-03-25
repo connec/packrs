@@ -144,6 +144,41 @@ pub fn end_of_input<'i, 'p>() -> BoxedParser<'i, 'p, (), ExpectedEndOfInput> {
     Box::new(EndOfInput)
 }
 
+/// Create a parser that will evaluate two given parsers in order, and combine their results into a
+/// tuple.
+///
+/// If both given parsers evaluate successfully, the result will be `Ok` with a tuple of the parsed
+/// values. If either parser fails, the result will be an `Err` with the parse failure.
+///
+/// ```
+/// use packrs::{ExpectedChar, ParserExt, Span, chr, join, string};
+///
+/// let expr = join(chr('1'), string("+1").maybe());
+///
+/// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, (
+///     Span::new(0..1, "1"),
+///     Span::new(1..1, None)
+/// ))));
+/// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, (
+///     Span::new(0..1, "1"),
+///     Span::new(1..3, Some(Span::new(0..2, "+1"))),
+/// ))));
+/// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
+/// ```
+#[allow(clippy::type_complexity)]
+pub fn join<'i, 'p, P1, P2, E>(
+    p1: P1,
+    p2: P2,
+) -> BoxedParser<'i, 'p, (Span<P1::Value>, Span<P2::Value>), E>
+where
+    P1: Parser<'i> + 'p,
+    P2: Parser<'i> + 'p,
+    E: From<P1::Error> + From<P2::Error> + 'p,
+    'i: 'p,
+{
+    Box::new(Join(map_err(p1, E::from), map_err(p2, E::from)))
+}
+
 /// Create a parser that will evaluate the given parser, and transform a successful result with the
 /// given function.
 ///
