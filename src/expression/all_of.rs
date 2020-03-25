@@ -120,7 +120,7 @@ mod tests {
                     .map(|_| {
                         let s = String::arbitrary(g);
                         (
-                            if f64::arbitrary(g) > 0.1 {
+                            if u8::arbitrary(g) > 4 {
                                 TestExpr::ok(0..s.len())
                             } else {
                                 TestExpr::err(0..s.len())
