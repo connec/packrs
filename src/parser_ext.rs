@@ -1,6 +1,7 @@
 use core::iter::FromIterator;
 
 use crate::combinators::*;
+use crate::expression::ExpectedEndOfInput;
 use crate::parser::Parser;
 use crate::span::Span;
 
@@ -31,6 +32,21 @@ pub trait ParserExt {
         Self: Parser<'i> + Sized + 'p,
     {
         check(self)
+    }
+
+    /// Map this parser to one that fails if there is remaining input.
+    ///
+    /// See [`end_of_input`] and [`EndOfInput`] for more details.
+    ///
+    /// [`end_of_input`]: ../fn.end_of_input.html
+    /// [`EndOfInput`]: ../expression/struct.EndOfInput.html
+    fn end<'i, 'p, E>(self) -> BoxedParser<'i, 'p, Self::Value, E>
+    where
+        Self: Parser<'i> + Sized + 'p,
+        E: From<Self::Error> + From<ExpectedEndOfInput> + 'p,
+        'i: 'p,
+    {
+        map(join(self, end_of_input()), |(value, _)| value.take())
     }
 
     /// Map this parser to one producing a different value.
@@ -156,7 +172,7 @@ impl<'i, P> ParserExt for Vec<P> where P: Parser<'i> {}
 #[cfg(test)]
 mod tests {
     use crate::combinators::any;
-    use crate::expression::UnexpectedEndOfInput;
+    use crate::expression::{ExpectedEndOfInput, UnexpectedEndOfInput};
     use crate::span::Span;
 
     use super::ParserExt;
@@ -179,6 +195,35 @@ mod tests {
         let expr = any().check();
 
         assert_eq!(expr.parse("÷"), Ok(Span::new(0..0, ())));
+    }
+
+    #[test]
+    fn test_end() {
+        #[derive(Debug, PartialEq)]
+        enum Error {
+            ExpectedEndOfInput,
+            UnexpectedEndOfInput,
+        }
+
+        impl From<ExpectedEndOfInput> for Error {
+            fn from(_: ExpectedEndOfInput) -> Self {
+                Error::ExpectedEndOfInput
+            }
+        }
+
+        impl From<UnexpectedEndOfInput> for Error {
+            fn from(_: UnexpectedEndOfInput) -> Self {
+                Error::UnexpectedEndOfInput
+            }
+        }
+
+        let expr = any().end();
+
+        assert_eq!(expr.parse("न"), Ok(Span::new(0..3, "न")));
+        assert_eq!(
+            expr.parse("नि"),
+            Err(Span::new(3..6, Error::ExpectedEndOfInput))
+        );
     }
 
     #[test]
