@@ -10,6 +10,28 @@ pub trait Parser<'i> {
 
     /// Parse a given input and produce a result.
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>>;
+
+    /// Turn a parser into a boxed trait object.
+    ///
+    /// This is particularly useful when constructing `AllOf` or `OneOf` with different (but
+    /// compatible) parsers.
+    fn boxed<'p>(self) -> Box<dyn Parser<'i, Value = Self::Value, Error = Self::Error> + 'p>
+    where
+        Self: Sized + 'p,
+    {
+        Box::new(self)
+    }
+
+    /// Turn a parser into a trait object reference.
+    ///
+    /// This is particularly useful when constructing `AllOf` or `OneOf` with different (but
+    /// compatible) parsers.
+    fn as_ref(&self) -> &dyn Parser<'i, Value = Self::Value, Error = Self::Error>
+    where
+        Self: std::marker::Sized,
+    {
+        self
+    }
 }
 
 impl<'i, P> Parser<'i> for &P
@@ -34,7 +56,7 @@ where
     type Error = P::Error;
 
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
-        self.as_ref().parse(input)
+        std::convert::AsRef::as_ref(self).parse(input)
     }
 }
 

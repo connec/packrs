@@ -1,5 +1,29 @@
+//! An expression that consumes a specific character.
+//!
+//! See [`chr`].
+
 use crate::parser::Parser;
 use crate::span::Span;
+
+/// Create a parser that consumes a specific character.
+///
+/// When given an input that starts with the given character, the result will be `Ok` with a
+/// subslice of the input containing the character.
+///
+/// When given an input that does not start with the given character, the result will be an `Err`
+/// with [`ExpectedChar`]`(char)`.
+///
+/// ```
+/// use packrs::{ExpectedChar, ParserExt, Span, all_of, chr};
+///
+/// let hello = "hello".chars().map(chr).collect::<Vec<_>>().all_of().collect();
+///
+/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
+/// assert_eq!(hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
+/// ```
+pub fn chr(char: char) -> Chr {
+    Chr(char)
+}
 
 /// A struct representing a failure due to a missing expected character.
 #[derive(Debug, PartialEq)]
@@ -8,19 +32,13 @@ pub struct ExpectedChar(
     pub char,
 );
 
-/// An expression for parsing a specific character.
-pub struct Chr(pub(crate) char);
+/// The struct returned from [`chr`].
+pub struct Chr(char);
 
 impl<'i> Parser<'i> for Chr {
     type Value = &'i str;
     type Error = ExpectedChar;
 
-    /// Parse a specific character from an `&str`.
-    ///
-    /// If the the input begins with the character then the successful result will contain the
-    /// matched slice of the input. Otherwise, an [`ExpectedChar`] error is returned.
-    ///
-    /// [`ExpectedChar`]: enum.Error.html#variant.ExpectedChar
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let actual = input
             .chars()
@@ -42,32 +60,32 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{Chr, ExpectedChar};
+    use super::{chr, ExpectedChar};
 
     #[test]
     fn match_ascii() {
-        assert_eq!(Chr('h').parse("hello"), Ok(Span::new(0..1, "h")));
+        assert_eq!(chr('h').parse("hello"), Ok(Span::new(0..1, "h")));
     }
 
     #[test]
     fn match_utf8() {
-        assert_eq!(Chr('💩').parse("💩"), Ok(Span::new(0..4, "💩")));
+        assert_eq!(chr('💩').parse("💩"), Ok(Span::new(0..4, "💩")));
     }
 
     #[test]
     fn match_grapheme() {
-        assert_eq!(Chr('न').parse("नि"), Ok(Span::new(0..3, "न")));
+        assert_eq!(chr('न').parse("नि"), Ok(Span::new(0..3, "न")));
     }
 
     #[test]
     fn error_if_empty() {
-        assert_eq!(Chr('h').parse(""), Err(Span::new(0..0, ExpectedChar('h'))));
+        assert_eq!(chr('h').parse(""), Err(Span::new(0..0, ExpectedChar('h'))));
     }
 
     #[test]
     fn error_if_wrong_char_ascii() {
         assert_eq!(
-            Chr('h').parse("world"),
+            chr('h').parse("world"),
             Err(Span::new(0..1, ExpectedChar('h')))
         );
     }
@@ -75,14 +93,14 @@ mod tests {
     #[test]
     fn error_if_wrong_char_grapheme() {
         assert_eq!(
-            Chr('h').parse("नि"),
+            chr('h').parse("नि"),
             Err(Span::new(0..3, ExpectedChar('h')))
         );
     }
 
     #[quickcheck]
     fn parse(char: char, input: String) {
-        let result = Chr(char).parse(&input);
+        let result = chr(char).parse(&input);
         if input.starts_with(char) {
             assert_eq!(
                 result,

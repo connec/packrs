@@ -1,22 +1,50 @@
+//! An expression that evaluates two sub-expressions in order, and combines their results.
+//!
+//! See [`join`].
+
 use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
-/// An expression for parsing a pair of sub-expressions whilst retaining their value types.
-pub struct Join<P1, P2>(pub(crate) P1, pub(crate) P2);
-
-impl<'i, P1, P2, E> Parser<'i> for Join<P1, P2>
+/// Create a parser that will evaluate two given parsers in order, and combine their results into a
+/// tuple.
+///
+/// If both given parsers evaluate successfully, the result will be `Ok` with a tuple of the parsed
+/// values. If either parser fails, the result will be an `Err` with the parse failure.
+///
+/// ```
+/// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, join, string};
+///
+/// let expr = join(chr('1'), string("+1").maybe());
+///
+/// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, (
+///     Span::new(0..1, "1"),
+///     Span::new(1..1, None)
+/// ))));
+/// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, (
+///     Span::new(0..1, "1"),
+///     Span::new(1..3, Some(Span::new(0..2, "+1"))),
+/// ))));
+/// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
+/// ```
+pub fn join<'i, P1, P2>(p1: P1, p2: P2) -> Join<P1, P2>
 where
-    P1: Parser<'i, Error = E>,
-    P2: Parser<'i, Error = E>,
+    P1: Parser<'i>,
+    P2: Parser<'i, Error = P1::Error>,
+{
+    Join(p1, p2)
+}
+
+/// The struct returned from [`join`].
+pub struct Join<P1, P2>(P1, P2);
+
+impl<'i, P1, P2> Parser<'i> for Join<P1, P2>
+where
+    P1: Parser<'i>,
+    P2: Parser<'i, Error = P1::Error>,
 {
     type Value = (Span<P1::Value>, Span<P2::Value>);
-    type Error = E;
+    type Error = P1::Error;
 
-    /// Parse a pair of sub-expressions.
-    ///
-    /// Parsing succeeds if both sub-expressions succeed, and the result is a tuple of the
-    /// sub-expression results. If any sub-expression fails, the failure is returned and any results
-    /// up to that point are dropped.
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let v1 = self.0.parse(input)?;
         let v2 = self.1.parse(&input[v1.end()..]).relative_to(v1.end())?;
@@ -34,13 +62,13 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::Join;
+    use super::join;
 
     #[test]
     fn p1_match() {
         let p1 = TestExpr::ok(1..3);
         let p2 = TestExpr::err(0..2);
-        let result = Join(&p1, &p2).parse("hello");
+        let result = join(&p1, &p2).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 1, Err(Span::new(3..5, TestError)))
@@ -51,7 +79,7 @@ mod tests {
     fn p2_match() {
         let p1 = TestExpr::err(1..3);
         let p2 = TestExpr::ok(0..2);
-        let result = Join(&p1, &p2).parse("hello");
+        let result = join(&p1, &p2).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 0, Err(Span::new(1..3, TestError)))
@@ -62,7 +90,7 @@ mod tests {
     fn p1_p2_match() {
         let p1 = TestExpr::ok(1..3);
         let p2 = TestExpr::ok(0..2);
-        let result = Join(&p1, &p2).parse("hello");
+        let result = join(&p1, &p2).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (
@@ -80,7 +108,7 @@ mod tests {
     fn p1_p2_error() {
         let p1 = TestExpr::err(1..3);
         let p2 = TestExpr::err(0..2);
-        let result = Join(&p1, &p2).parse("hello");
+        let result = join(&p1, &p2).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 0, Err(Span::new(1..3, TestError)))
@@ -111,7 +139,7 @@ mod tests {
 
     #[quickcheck]
     fn parse(TestData(p1, p2, input): TestData) {
-        let result = Join(&p1, &p2).parse(&input);
+        let result = join(&p1, &p2).parse(&input);
         match (&p1, &p2) {
             (ParseMatch(config1, _), ParseMatch(config2, _)) => {
                 assert_eq!(

@@ -2,14 +2,26 @@
 
 //! Parsing expression grammar library.
 
-mod combinators;
-mod expression;
+pub mod expression;
 mod parser;
 mod parser_ext;
 mod span;
 
-pub use combinators::*;
-pub use expression::{ExpectedChar, ExpectedEndOfInput, ExpectedString, UnexpectedEndOfInput};
+pub use expression::all_of::all_of;
+pub use expression::any::{any, UnexpectedEndOfInput};
+pub use expression::check::check;
+pub use expression::chr::{chr, ExpectedChar};
+pub use expression::end_of_input::{end_of_input, ExpectedEndOfInput};
+pub use expression::join::join;
+pub use expression::map::map;
+pub use expression::map_err::map_err;
+pub use expression::maybe::maybe;
+pub use expression::maybe_repeat::maybe_repeat;
+pub use expression::nothing::nothing;
+pub use expression::one_of::one_of;
+pub use expression::reject::reject;
+pub use expression::repeat::repeat;
+pub use expression::string::{string, ExpectedString};
 pub use parser::{ParseResult, Parser};
 pub use parser_ext::ParserExt;
 pub use span::Span;

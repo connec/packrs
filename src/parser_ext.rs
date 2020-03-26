@@ -1,7 +1,16 @@
+use crate::expression::all_of::{all_of, AllOf};
+use crate::expression::check::{check, Check};
+use crate::expression::end_of_input::{end_of_input, ExpectedEndOfInput};
+use crate::expression::join::join;
+use crate::expression::map::{map, Map};
+use crate::expression::map_err::{map_err, MapErr};
+use crate::expression::maybe::{maybe, Maybe};
+use crate::expression::maybe_repeat::{maybe_repeat, MaybeRepeat};
+use crate::expression::one_of::{one_of, OneOf};
+use crate::expression::reject::{reject, Reject};
+use crate::expression::repeat::{repeat, Repeat};
 use core::iter::FromIterator;
 
-use crate::combinators::*;
-use crate::expression::ExpectedEndOfInput;
 use crate::parser::Parser;
 use crate::span::Span;
 
@@ -9,112 +18,111 @@ use crate::span::Span;
 pub trait ParserExt {
     /// Construct a parser from a `Vec` of parser.
     ///
-    /// See [`all_of`] and [`AllOf`] for more details.
-    ///
-    /// [`all_of`]: ../fn.all_of.html
-    /// [`AllOf`]: ../expression/struct.AllOf.html
-    fn all_of<'i, 'p, P>(self) -> BoxedParser<'i, 'p, Vec<Span<P::Value>>, P::Error>
+    /// See [`all_of`](crate::all_of) for more details.
+    fn all_of<'i, P>(self) -> AllOf<P>
     where
-        Self: IntoIterator<Item = P> + Sized + 'p,
-        P: Parser<'i> + 'p,
+        Self: IntoIterator<Item = P> + Sized,
+        P: Parser<'i>,
     {
         all_of(self.into_iter().collect())
     }
 
     /// Map this parser to one that discards successful results and consumes no input.
     ///
-    /// See [`check`] and [`Check`] for more details.
+    /// See [`check`](crate::check) for more details.
     ///
     /// [`check`]: ../fn.check.html
     /// [`Check`]: ../expression/struct.Check.html
-    fn check<'i, 'p>(self) -> BoxedParser<'i, 'p, (), Self::Error>
+    fn check<'i>(self) -> Check<Self>
     where
-        Self: Parser<'i> + Sized + 'p,
+        Self: Parser<'i> + Sized,
     {
         check(self)
     }
 
     /// Map this parser to one that fails if there is remaining input.
     ///
-    /// See [`end_of_input`] and [`EndOfInput`] for more details.
+    /// See [`end_of_input`](crate::end_of_input) for more details.
     ///
     /// [`end_of_input`]: ../fn.end_of_input.html
     /// [`EndOfInput`]: ../expression/struct.EndOfInput.html
-    fn end<'i, 'p, E>(self) -> BoxedParser<'i, 'p, Self::Value, E>
+    fn end<'i, 'p, E>(self) -> Box<dyn Parser<'i, Value = Self::Value, Error = E> + 'p>
     where
         Self: Parser<'i> + Sized + 'p,
         E: From<Self::Error> + From<ExpectedEndOfInput> + 'p,
         'i: 'p,
     {
-        map(join(self, end_of_input()), |(value, _)| value.take())
+        map(
+            join(self.map_err(E::from), end_of_input().map_err(E::from)),
+            |(value, _)| value.take(),
+        )
+        .boxed()
     }
 
     /// Map this parser to one producing a different value.
     ///
-    /// See [`map`] and [`Map`] for more details.
+    /// See [`map`](crate::map) for more details.
     ///
     /// [`map`]: ../fn.map.html
     /// [`Map`]: ../expression/struct.Map.html
-    fn map<'i, 'p, F, U>(self, transform: F) -> BoxedParser<'i, 'p, U, Self::Error>
+    fn map<'i, F, U>(self, transform: F) -> Map<Self, F>
     where
-        Self: Parser<'i> + Sized + 'p,
-        F: Fn(Self::Value) -> U + 'p,
+        Self: Parser<'i> + Sized,
+        F: Fn(Self::Value) -> U,
     {
         map(self, transform)
     }
 
     /// Map this parser to one producing a different error.
     ///
-    /// See [`map_err`] and [`MapErr`] for more details.
+    /// See [`map_err`](crate::map_err) for more details.
     ///
     /// [`map_err`]: ../fn.map_err.html
     /// [`MapErr`]: ../expression/struct.MapErr.html
-    fn map_err<'i, 'p, F, U>(self, transform: F) -> BoxedParser<'i, 'p, Self::Value, U>
+    fn map_err<'i, F, U>(self, transform: F) -> MapErr<Self, F>
     where
-        Self: Parser<'i> + Sized + 'p,
-        F: Fn(Self::Error) -> U + 'p,
+        Self: Parser<'i> + Sized,
+        F: Fn(Self::Error) -> U,
     {
         map_err(self, transform)
     }
 
     /// Convert this parser to one that produces an `Option`, with `None` replacing errors.
     ///
-    /// See [`maybe`] and [`Maybe`] for more details.
+    /// See [`maybe`](crate::maybe) for more details.
     ///
     /// [`maybe`]: ../fn.maybe.html
     /// [`Maybe`]: ../expression/struct.Maybe.html
-    fn maybe<'i, 'p, E>(self) -> BoxedParser<'i, 'p, Option<Span<Self::Value>>, E>
+    fn maybe<'i, E>(self) -> Maybe<Self, E>
     where
-        Self: Parser<'i> + Sized + 'p,
-        E: 'p,
+        Self: Parser<'i> + Sized,
     {
         maybe(self)
     }
 
     /// Convert this parser to one that parses repeatedly, returning a `Vec` of results.
     ///
-    /// See [`maybe_repeat`] and [`MaybeRepeat`] for more details.
+    /// See [`maybe_repeat`](crate::maybe_repeat) for more details.
     ///
     /// [`maybe_repeat`]: ../fn.maybe_repeat.html
     /// [`MaybeRepeat`]: ../expression/struct.MaybeRepeat.html
-    fn maybe_repeat<'i, 'p, E>(self) -> BoxedParser<'i, 'p, Vec<Span<Self::Value>>, E>
+    fn maybe_repeat<'i, E>(self) -> MaybeRepeat<Self, E>
     where
-        Self: Parser<'i> + Sized + 'p,
-        E: 'p,
+        Self: Parser<'i> + Sized,
     {
         maybe_repeat(self)
     }
 
     /// Construct a parser from a `Vec` of parser.
     ///
-    /// See [`one_of`] and [`OneOf`] for more details.
+    /// See [`one_of`](crate::one_of) for more details.
     ///
     /// [`one_of`]: ../fn.one_of.html
     /// [`OneOf`]: ../expression/struct.OneOf.html
-    fn one_of<'i, 'p, P>(self) -> BoxedParser<'i, 'p, P::Value, Vec<Span<P::Error>>>
+    fn one_of<'i, P>(self) -> OneOf<P>
     where
-        Self: IntoIterator<Item = P> + Sized + 'p,
-        P: Parser<'i> + 'p,
+        Self: IntoIterator<Item = P> + Sized,
+        P: Parser<'i>,
     {
         one_of(self.into_iter().collect())
     }
@@ -122,13 +130,13 @@ pub trait ParserExt {
     /// Convert this parser to one that inverts the result, discarding values and consuming no
     /// input.
     ///
-    /// See [`reject`] and [`Reject`] for more details.
+    /// See [`reject`](crate::reject) for more details.
     ///
     /// [`reject`]: ../fn.reject.html
     /// [`Reject`]: ../expression/struct.Reject.html
-    fn reject<'i, 'p>(self) -> BoxedParser<'i, 'p, (), ()>
+    fn reject<'i>(self) -> Reject<Self>
     where
-        Self: Parser<'i> + Sized + 'p,
+        Self: Parser<'i> + Sized,
     {
         reject(self)
     }
@@ -136,33 +144,30 @@ pub trait ParserExt {
     /// Convert this parser to one that parses repeatedly, returning a `Vec` of results. If parsing
     /// doesn't succeed at least once, the error will be returned.
     ///
-    /// See [`repeat`] and [`Repeat`] for more details.
+    /// See [`repeat`](crate::repeat) for more details.
     ///
     /// [`repeat`]: ../fn.repeat.html
     /// [`Repeat`]: ../expression/struct.Repeat.html
-    fn repeat<'i, 'p>(self) -> BoxedParser<'i, 'p, Vec<Span<Self::Value>>, Self::Error>
+    fn repeat<'i>(self) -> Repeat<Self>
     where
-        Self: Parser<'i> + Sized + 'p,
+        Self: Parser<'i> + Sized,
     {
         repeat(self)
     }
 
     /// Convert this parser to one that collects its result.
     ///
-    /// This is paricularly useful for processing the results of [`all_of`], [`maybe_repeat`],
-    /// [`one_of`], and [`repeat`].
-    ///
-    /// [`all_of`]: ../combinators/fn.all_of.html
-    /// [`maybe_repeat`]: ../combinators/fn.maybe_repeat.html
-    /// [`one_of`]: ../combinators/fn.one_of.html
-    /// [`repeat`]: ../combinators/fn.repeat.html
-    fn collect<'i, 'p, C, I>(self) -> BoxedParser<'i, 'p, C, Self::Error>
+    /// This is paricularly useful for processing the results of [`all_of`](crate::all_of),
+    /// [`maybe_repeat`](crate::maybe_repeat), [`one_of`](crate::one_of), and
+    /// [`repeat`](crate::repeat).
+    fn collect<'i, 'p, C, I>(self) -> Box<dyn Parser<'i, Value = C, Error = Self::Error> + 'p>
     where
         Self: Parser<'i> + Sized + 'p,
         Self::Value: IntoIterator<Item = Span<I>>,
         C: FromIterator<I>,
     {
         self.map(|v| v.into_iter().map(|i| i.take()).collect())
+            .boxed()
     }
 }
 
@@ -171,8 +176,9 @@ impl<'i, P> ParserExt for Vec<P> where P: Parser<'i> {}
 
 #[cfg(test)]
 mod tests {
-    use crate::combinators::any;
-    use crate::expression::{ExpectedEndOfInput, UnexpectedEndOfInput};
+    use crate::expression::any::{any, UnexpectedEndOfInput};
+    use crate::expression::end_of_input::ExpectedEndOfInput;
+    use crate::parser::Parser;
     use crate::span::Span;
 
     use super::ParserExt;

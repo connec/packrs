@@ -1,8 +1,54 @@
+//! An expression that evaluates a sub-expression, and transforms successful results.
+//!
+//! See [`map`].
+
 use crate::parser::Parser;
 use crate::span::Span;
 
-/// An expression that transforms a successful sub-expression result.
-pub struct Map<P, F>(pub(crate) P, pub(crate) F);
+/// Create a parser that will evaluate the given parser, and transform a successful result with the
+/// given function.
+///
+/// If the given parser evaluates successfully, the result will be `Ok` with
+/// `transform(<parsed value>)`. If the given parser fails, the result will be an `Err` with the
+/// parse failure.
+///
+/// ```
+/// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, map};
+///
+/// #[derive(Debug, PartialEq)]
+/// enum Op {
+///     Add,
+///     Sub,
+///     Mul,
+///     Div,
+/// }
+///
+/// let op = vec![
+///     map(chr('+'), |_| Op::Add).boxed(),
+///     map(chr('-'), |_| Op::Sub).boxed(),
+///     map(chr('*'), |_| Op::Mul).boxed(),
+///     map(chr('/'), |_| Op::Div).boxed(),
+/// ].one_of();
+///
+/// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
+/// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
+/// assert_eq!(op.parse("÷"), Err(Span::new(0..2, vec![
+///     Span::new(0..2, ExpectedChar('+')),
+///     Span::new(0..2, ExpectedChar('-')),
+///     Span::new(0..2, ExpectedChar('*')),
+///     Span::new(0..2, ExpectedChar('/')),
+/// ])));
+/// ```
+pub fn map<'i, P, F, U>(parser: P, transform: F) -> Map<P, F>
+where
+    P: Parser<'i>,
+    F: Fn(P::Value) -> U,
+{
+    Map(parser, transform)
+}
+
+/// The struct returned from [`map`].
+pub struct Map<P, F>(P, F);
 
 impl<'i, P, F, U> Parser<'i> for Map<P, F>
 where
@@ -11,9 +57,7 @@ where
 {
     type Value = U;
     type Error = P::Error;
-    /// Attempt to parse the sub-expression, and map the result on success.
-    ///
-    /// If the sub-expression fails, the failure is returned verbatim.
+
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map(|value| value.map(&self.1))
     }
@@ -28,7 +72,7 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::Map;
+    use super::map;
 
     #[test]
     fn p_match() {
@@ -39,7 +83,7 @@ mod tests {
         };
 
         assert_eq!(
-            (Map(TestExpr::ok(23..89), f).parse("hello"), called.get()),
+            (map(TestExpr::ok(23..89), f).parse("hello"), called.get()),
             (Ok(Span::new(23..89, 42)), true)
         );
     }
@@ -53,7 +97,7 @@ mod tests {
         };
 
         assert_eq!(
-            (Map(TestExpr::err(23..89), f).parse("hello"), called.get()),
+            (map(TestExpr::err(23..89), f).parse("hello"), called.get()),
             (Err(Span::new(23..89, TestError)), false)
         );
     }
@@ -67,7 +111,7 @@ mod tests {
         };
 
         assert_eq!(
-            (Map(&p, f).parse(&input), called.get()),
+            (map(&p, f).parse(&input), called.get()),
             match p {
                 ParseMatch(config, _) => (Ok(Span::new(config.range(), value)), true),
                 ParseError(config) => (Err(Span::new(config.range(), TestError)), false),

@@ -1,10 +1,59 @@
+//! An expression that evaluates sub-expressions in order, returning the first success.
+//!
+//! See [`one_of`].
+
 use core::cmp::{max, min};
 
 use crate::parser::Parser;
 use crate::span::Span;
 
-/// An expression that returns the first successful match from a sequence of sub-expressions.
-pub struct OneOf<P>(pub(crate) Vec<P>);
+/// Create a parser that evaluates the given parsers in order, returning the first success.
+///
+/// If one of the given parsers evluates successfully, the result will be `Ok` with the parsed
+/// value. If all the given parsers fail, the result will be an `Err` with a `Vec` of the parse
+/// failures.
+///
+/// Note that all parsers must have the same type. [`map`](super::map::map) and
+/// [`map_err`](super::map_err::map_err) can be used to unify value and errors types, and
+/// [`Parser::as_ref`](crate::Parser::as_ref) or [`Parser::boxed`](crate::Parser::boxed) can be used
+/// to unify different parser types.
+///
+/// ```
+/// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, one_of};
+///
+/// #[derive(Debug, PartialEq)]
+/// enum Op {
+///     Add,
+///     Sub,
+///     Mul,
+///     Div,
+/// }
+///
+/// let op = one_of(vec![
+///     chr('+').map(|_| Op::Add).boxed(),
+///     chr('-').map(|_| Op::Sub).boxed(),
+///     chr('*').map(|_| Op::Mul).boxed(),
+///     chr('/').map(|_| Op::Div).boxed(),
+/// ]);
+///
+/// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
+/// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
+/// assert_eq!(op.parse("÷"), Err(Span::new(0..2, vec![
+///     Span::new(0..2, ExpectedChar('+')),
+///     Span::new(0..2, ExpectedChar('-')),
+///     Span::new(0..2, ExpectedChar('*')),
+///     Span::new(0..2, ExpectedChar('/')),
+/// ])));
+/// ```
+pub fn one_of<'i, P>(parsers: Vec<P>) -> OneOf<P>
+where
+    P: Parser<'i>,
+{
+    OneOf(parsers)
+}
+
+/// The struct returned from [`one_of`].
+pub struct OneOf<P>(Vec<P>);
 
 impl<'i, P> Parser<'i> for OneOf<P>
 where
@@ -13,11 +62,6 @@ where
     type Value = P::Value;
     type Error = Vec<Span<P::Error>>;
 
-    /// Parse a sequence of sub-expressions, returning the result of the first one that succeeds.
-    ///
-    /// Parsing succeeds if any sub-expression succeeds, and the result is the result of the
-    /// successful sub-expression (any preceeding failures are dropped). If all sub-expressions
-    /// fail, all the failures are returned.
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut start = usize::max_value();
         let mut end = 0;
@@ -48,12 +92,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::OneOf;
+    use super::one_of;
 
     #[test]
     fn empty() {
         assert_eq!(
-            OneOf::<TestExpr>(vec![]).parse("hello"),
+            one_of::<TestExpr>(vec![]).parse("hello"),
             Err(Span::new(0..0, vec![]))
         );
     }
@@ -62,7 +106,7 @@ mod tests {
     fn p1_match() {
         let p1 = TestExpr::ok(32..71);
         let p2 = TestExpr::err(12..29);
-        let result = OneOf(vec![&p1, &p2]).parse("hello");
+        let result = one_of(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 0, Ok(Span::new(32..71, TestValue)))
@@ -73,7 +117,7 @@ mod tests {
     fn p2_match() {
         let p1 = TestExpr::err(32..71);
         let p2 = TestExpr::ok(12..29);
-        let result = OneOf(vec![&p1, &p2]).parse("hello");
+        let result = one_of(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 1, Ok(Span::new(12..29, TestValue)))
@@ -84,7 +128,7 @@ mod tests {
     fn p1_and_p2_match() {
         let p1 = TestExpr::ok(32..71);
         let p2 = TestExpr::ok(12..29);
-        let result = OneOf(vec![&p1, &p2]).parse("hello");
+        let result = one_of(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result),
             (1, 0, Ok(Span::new(32..71, TestValue)))
@@ -95,7 +139,7 @@ mod tests {
     fn p1_and_p2_error() {
         let p1 = TestExpr::err(32..71);
         let p2 = TestExpr::err(12..29);
-        let result = OneOf(vec![&p1, &p2]).parse("hello");
+        let result = one_of(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (
@@ -118,7 +162,7 @@ mod tests {
                 None
             }
         });
-        let result = OneOf(ps.iter().collect()).parse(&input);
+        let result = one_of(ps.iter().collect()).parse(&input);
         match first_match {
             Some((i, p)) => {
                 assert_eq!(result, Ok(Span::new(p.config().range(), TestValue)));
