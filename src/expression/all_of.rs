@@ -1,38 +1,12 @@
 //! An expression that evaluates sub-expressions in order.
 //!
-//! See [`all_of`].
+//! See [`crate::all_of`].
 
 use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
-/// Create a parser that will evaluate the given parsers in order against an input.
-///
-/// If all of the given parsers can be evaluated successfully, the result will be `Ok` with a `Vec`
-/// of the successfully parsed values. If any parser fails, the result will be an `Err` with the
-/// parse failure.
-///
-/// Note that all parsers must have the same type. [`map`](crate::Parser::map) and
-/// [`map_err`](crate::Parser::map_err) can be used to unify value and errors types, and
-/// [`Parser::as_ref`](crate::Parser::as_ref) or [`Parser::boxed`](crate::Parser::boxed) can be used
-/// to unify different parser types.
-///
-/// ```
-/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
-///
-/// let hello = all_of("hello".chars().map(chr).collect()).collect();
-///
-/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
-/// assert_eq!(hello.parse("world"), Err(Span::new(0..1, ExpectedChar('h'))));
-/// ```
-pub fn all_of<'i, P>(parsers: Vec<P>) -> AllOf<P>
-where
-    P: Parser<'i>,
-{
-    AllOf(parsers)
-}
-
-/// The struct returned from [`all_of`].
-pub struct AllOf<P>(Vec<P>);
+/// The struct returned from [`crate::all_of`].
+pub struct AllOf<P>(pub(crate) Vec<P>);
 
 impl<'i, P> Parser<'i> for AllOf<P>
 where
@@ -74,12 +48,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::all_of;
+    use super::AllOf;
 
     #[test]
     fn empty() {
         assert_eq!(
-            all_of::<TestExpr>(vec![]).parse("hello"),
+            AllOf::<TestExpr>(vec![]).parse("hello"),
             Ok(Span::new(0..0, vec![]))
         );
     }
@@ -88,7 +62,7 @@ mod tests {
     fn p1_match() {
         let p1 = TestExpr::ok(1..3);
         let p2 = TestExpr::err(0..2);
-        let result = all_of(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (1, 1, Err(Span::new(3..5, TestError)))
@@ -99,7 +73,7 @@ mod tests {
     fn p2_match() {
         let p1 = TestExpr::err(1..3);
         let p2 = TestExpr::ok(0..2);
-        let result = all_of(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (1, 0, Err(Span::new(1..3, TestError)))
@@ -110,7 +84,7 @@ mod tests {
     fn p1_p2_match() {
         let p1 = TestExpr::ok(1..3);
         let p2 = TestExpr::ok(0..2);
-        let result = all_of(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (
@@ -128,7 +102,7 @@ mod tests {
     fn p1_p2_error() {
         let p1 = TestExpr::err(1..3);
         let p2 = TestExpr::err(0..2);
-        let result = all_of(vec![&p1, &p2]).parse("hello");
+        let result = AllOf(vec![&p1, &p2]).parse("hello");
         assert_eq!(
             (p1.config().calls(), p2.config().calls(), result,),
             (1, 0, Err(Span::new(1..3, TestError)))
@@ -178,7 +152,7 @@ mod tests {
                 Some((i, p.clone()))
             }
         });
-        let result = all_of(ps.iter().collect()).parse(&input);
+        let result = AllOf(ps.iter().collect()).parse(&input);
         match first_error {
             Some((i, p)) => {
                 let end = ps.iter().take(i).map(|p| p.config().range().end).sum();

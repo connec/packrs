@@ -1,44 +1,15 @@
 //! An expression that consumes any single character.
 //!
-//! See [`any`].
+//! See [`crate::any`].
 
 use crate::parser::Parser;
 use crate::span::Span;
-
-/// Create a parser that consumes any single character.
-///
-/// When given a non-empty input, the result will be `Ok` with a subslice of the input containing
-/// the first character.
-///
-/// When given an empty input, the result will be an `Err` with [`UnexpectedEndOfInput`].
-///
-/// ```
-/// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
-///
-/// let first_word = all_of(vec![
-///     chr(' ')
-///         .reject()
-///         .map(|_| "")
-///         .map_err(|_| UnexpectedEndOfInput)
-///         .boxed(),
-///     any().boxed(),
-/// ])
-///     .map(|mut v| v.pop().unwrap().take())
-///     .repeat()
-///     .collect();
-///
-/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
-/// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
-/// ```
-pub fn any() -> Any {
-    Any
-}
 
 /// A struct representing a failure due to unexpected end of input.
 #[derive(Debug, PartialEq)]
 pub struct UnexpectedEndOfInput;
 
-/// The struct returned from [`any`].
+/// The struct returned from [`crate::any`].
 pub struct Any;
 
 impl<'i> Parser<'i> for Any {
@@ -62,31 +33,31 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{any, UnexpectedEndOfInput};
+    use super::{Any, UnexpectedEndOfInput};
 
     #[test]
     fn match_ascii() {
-        assert_eq!(any().parse("hello"), Ok(Span::new(0..1, "h")));
+        assert_eq!(Any.parse("hello"), Ok(Span::new(0..1, "h")));
     }
 
     #[test]
     fn match_utf8() {
-        assert_eq!(any().parse("💩"), Ok(Span::new(0..4, "💩")));
+        assert_eq!(Any.parse("💩"), Ok(Span::new(0..4, "💩")));
     }
 
     #[test]
     fn match_grapheme() {
-        assert_eq!(any().parse("नि"), Ok(Span::new(0..3, "न")));
+        assert_eq!(Any.parse("नि"), Ok(Span::new(0..3, "न")));
     }
 
     #[test]
     fn error_if_empty() {
-        assert_eq!(any().parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
+        assert_eq!(Any.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
     }
 
     #[quickcheck]
     fn parse(input: String) {
-        let result = any().parse(&input);
+        let result = Any.parse(&input);
         if input.is_empty() {
             assert_eq!(result, Err(Span::new(0..0, UnexpectedEndOfInput)));
         } else {

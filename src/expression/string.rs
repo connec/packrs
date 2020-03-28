@@ -1,27 +1,9 @@
 //! An expression that matches a string at the beginning on an input.
 //!
-//! See [`string`].
+//! See [`crate::string`].
 
 use crate::parser::Parser;
 use crate::span::Span;
-
-/// Create a parser that will match the given string at the beginning on an input.
-///
-/// When given an input that starts with the given string, the result will be `Ok` with a subslice
-/// of the input containing the matched string. When given an input that does not start with the
-/// given string, the result will be an `Err` with [`ExpectedString`]`(string)`.
-///
-/// ```
-/// use packrs::{ExpectedString, Parser, Span, string};
-///
-/// let check_hello = string("hello").check();
-///
-/// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
-/// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
-/// ```
-pub fn string(string: &str) -> String {
-    String(string)
-}
 
 /// A struct representing a failure due to a missing expected character.
 #[derive(Debug, PartialEq)]
@@ -30,8 +12,8 @@ pub struct ExpectedString<'s>(
     pub &'s str,
 );
 
-/// The struct returned from [`string`].
-pub struct String<'s>(&'s str);
+/// The struct returned from [`crate::string`].
+pub struct String<'s>(pub(crate) &'s str);
 
 impl<'s, 'i> Parser<'i> for String<'s> {
     type Value = &'i str;
@@ -58,27 +40,27 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{string, ExpectedString};
+    use super::{ExpectedString, String};
 
     #[test]
     fn match_ascii() {
-        assert_eq!(string("hello").parse("hello"), Ok(Span::new(0..5, "hello")));
+        assert_eq!(String("hello").parse("hello"), Ok(Span::new(0..5, "hello")));
     }
 
     #[test]
     fn match_utf8() {
-        assert_eq!(string("💩").parse("💩"), Ok(Span::new(0..4, "💩")));
+        assert_eq!(String("💩").parse("💩"), Ok(Span::new(0..4, "💩")));
     }
 
     #[test]
     fn match_grapheme() {
-        assert_eq!(string("नि").parse("नि"), Ok(Span::new(0..6, "नि")));
+        assert_eq!(String("नि").parse("नि"), Ok(Span::new(0..6, "नि")));
     }
 
     #[test]
     fn error_if_empty() {
         assert_eq!(
-            string("hello").parse(""),
+            String("hello").parse(""),
             Err(Span::new(0..0, ExpectedString("hello")))
         );
     }
@@ -86,7 +68,7 @@ mod tests {
     #[test]
     fn error_if_wrong_char_ascii() {
         assert_eq!(
-            string("hello").parse("world"),
+            String("hello").parse("world"),
             Err(Span::new(0..1, ExpectedString("hello")))
         );
     }
@@ -94,14 +76,14 @@ mod tests {
     #[test]
     fn error_if_wrong_char_grapheme() {
         assert_eq!(
-            string("hello").parse("नि"),
+            String("hello").parse("नि"),
             Err(Span::new(0..3, ExpectedString("hello")))
         );
     }
 
     #[quickcheck]
     fn parse(string: std::string::String, input: std::string::String) {
-        let result = super::string(&string).parse(&input);
+        let result = String(&string).parse(&input);
         if input.starts_with(&string) {
             assert_eq!(result, Ok(Span::new(0..string.len(), &string[..])));
         } else if input.is_empty() {

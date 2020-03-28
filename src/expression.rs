@@ -23,12 +23,11 @@ mod test_expr;
 
 #[cfg(test)]
 mod tests {
-    use crate::expression::all_of::all_of;
-    use crate::expression::chr::chr;
-    use crate::expression::chr::ExpectedChar;
+    use crate::expression::all_of::AllOf;
+    use crate::expression::chr::{Chr, ExpectedChar};
     use crate::expression::map::Map;
     use crate::expression::map_err::MapErr;
-    use crate::expression::one_of::one_of;
+    use crate::expression::one_of::OneOf;
     use crate::parser::Parser;
     use crate::span::Span;
 
@@ -54,21 +53,21 @@ mod tests {
         }
 
         let num = MapErr(
-            one_of::<Box<dyn Parser<Value = _, Error = _>>>(vec![
-                Box::new(Map(chr('1'), |_| Token::Num(1))),
-                Box::new(Map(chr('2'), |_| Token::Num(2))),
+            OneOf::<Box<dyn Parser<Value = _, Error = _>>>(vec![
+                Box::new(Map(Chr('1'), |_| Token::Num(1))),
+                Box::new(Map(Chr('2'), |_| Token::Num(2))),
             ]),
             |_: Vec<Span<ExpectedChar>>| CalcError::InvalidNumber,
         );
         let op = MapErr(
-            one_of::<Box<dyn Parser<Value = _, Error = _>>>(vec![
-                Box::new(Map(chr('+'), |_| Token::OpAdd)),
-                Box::new(Map(chr('-'), |_| Token::OpSub)),
+            OneOf::<Box<dyn Parser<Value = _, Error = _>>>(vec![
+                Box::new(Map(Chr('+'), |_| Token::OpAdd)),
+                Box::new(Map(Chr('-'), |_| Token::OpSub)),
             ]),
             |_: Vec<Span<ExpectedChar>>| CalcError::InvalidOperator,
         );
         let add = Map(
-            all_of::<&dyn Parser<Value = _, Error = _>>(vec![&num, &op, &num]),
+            AllOf::<&dyn Parser<Value = _, Error = _>>(vec![&num, &op, &num]),
             |mut seq: Vec<Span<Token>>| {
                 let mut seq = seq.drain(0..3);
                 let a = seq.next().unwrap();
@@ -92,7 +91,7 @@ mod tests {
             Token::Num(n) => Expr::Num(n),
             _ => unreachable!(),
         });
-        let expr = one_of::<&dyn Parser<Value = _, Error = _>>(vec![&add, &expr_num]);
+        let expr = OneOf::<&dyn Parser<Value = _, Error = _>>(vec![&add, &expr_num]);
 
         assert_eq!(expr.parse("1"), Ok(Span::new(0..1, Expr::Num(1))));
         assert_eq!(expr.parse("2"), Ok(Span::new(0..1, Expr::Num(2))));

@@ -1,18 +1,218 @@
 use core::iter::FromIterator;
 use core::marker::PhantomData;
 
+use crate::expression::all_of::AllOf;
+use crate::expression::any::Any;
 use crate::expression::check::Check;
+use crate::expression::chr::Chr;
 use crate::expression::end_of_input::{EndOfInput, ExpectedEndOfInput};
 use crate::expression::join::Join;
 use crate::expression::map::Map;
 use crate::expression::map_err::MapErr;
 use crate::expression::maybe::Maybe;
 use crate::expression::maybe_repeat::MaybeRepeat;
+use crate::expression::nothing::Nothing;
+use crate::expression::one_of::OneOf;
 use crate::expression::reject::Reject;
 use crate::expression::repeat::Repeat;
+use crate::expression::string::String;
 use crate::span::Span;
 
 type BoxedFn<I, O> = Box<dyn Fn(I) -> O>;
+
+/// Create a parser that will evaluate the given parsers in order against an input.
+///
+/// If all of the given parsers can be evaluated successfully, the result will be `Ok` with a `Vec`
+/// of the successfully parsed values. If any parser fails, the result will be an `Err` with the
+/// parse failure.
+///
+/// Note that all parsers must have the same type. [`map`](Parser::map) and
+/// [`map_err`](Parser::map_err) can be used to unify value and errors types, and
+/// [`Parser::as_ref`](Parser::as_ref) or [`Parser::boxed`](Parser::boxed) can be used to unify
+/// different parser types.
+///
+/// ```
+/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
+///
+/// let hello = all_of("hello".chars().map(chr).collect()).collect();
+///
+/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
+/// assert_eq!(hello.parse("world"), Err(Span::new(0..1, ExpectedChar('h'))));
+/// ```
+pub fn all_of<'i, P>(parsers: Vec<P>) -> AllOf<P>
+where
+    P: Parser<'i>,
+{
+    AllOf(parsers)
+}
+
+/// Create a parser that consumes any single character.
+///
+/// When given a non-empty input, the result will be `Ok` with a subslice of the input containing
+/// the first character.
+///
+/// When given an empty input, the result will be an `Err` with
+/// [`UnexpectedEndOfInput`](crate::expression::any::UnexpectedEndOfInput).
+///
+/// ```
+/// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
+///
+/// let first_word = all_of(vec![
+///     chr(' ')
+///         .reject()
+///         .map(|_| "")
+///         .map_err(|_| UnexpectedEndOfInput)
+///         .boxed(),
+///     any().boxed(),
+/// ])
+///     .map(|mut v| v.pop().unwrap().take())
+///     .repeat()
+///     .collect();
+///
+/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
+/// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
+/// ```
+pub fn any() -> Any {
+    Any
+}
+
+/// Create a parser that consumes a specific character.
+///
+/// When given an input that starts with the given character, the result will be `Ok` with a
+/// subslice of the input containing the character.
+///
+/// When given an input that does not start with the given character, the result will be an `Err`
+/// with [`ExpectedChar`](crate::expression::chr::ExpectedChar)`(char)`.
+///
+/// ```
+/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
+///
+/// let hello = all_of("hello".chars().map(chr).collect()).collect();
+///
+/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
+/// assert_eq!(hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
+/// ```
+pub fn chr(char: char) -> Chr {
+    Chr(char)
+}
+
+/// Create a parser that matches at the end of an input.
+///
+/// When given an empty input, the result will be `Ok(())`. When given a non-empty input the result
+/// will be an `Err` with [`ExpectedEndOfInput`].
+///
+/// ```
+/// use packrs::{ExpectedEndOfInput, Parser, Span, UnexpectedEndOfInput, all_of, any, end_of_input};
+///
+/// #[derive(Debug, PartialEq)]
+/// enum Error {
+///     ExpectedEndOfInput,
+///     UnexpectedEndOfInput,
+/// }
+///
+/// impl From<ExpectedEndOfInput> for Error {
+///     fn from(_: ExpectedEndOfInput) -> Self {
+///         Error::ExpectedEndOfInput
+///     }
+/// }
+///
+/// impl From<UnexpectedEndOfInput> for Error {
+///     fn from(_: UnexpectedEndOfInput) -> Self {
+///         Error::UnexpectedEndOfInput
+///     }
+/// }
+///
+/// let one_char = all_of(vec![
+///     any().map_err(|err| err.into()).boxed(),
+///     end_of_input().map(|_| "").map_err(|err| err.into()).boxed(),
+/// ])
+///     .collect();
+///
+/// assert_eq!(one_char.parse(""), Err(Span::new(0..0, Error::UnexpectedEndOfInput)));
+/// assert_eq!(one_char.parse("💩"), Ok(Span::new(0..4, "💩".to_string())));
+/// assert_eq!(one_char.parse("नि"), Err(Span::new(3..6, Error::ExpectedEndOfInput)));
+/// ```
+pub fn end_of_input() -> EndOfInput {
+    EndOfInput
+}
+
+/// Create a parser that always succeeds, consuming no input and producing no values.
+///
+/// This will always return `Ok(())`. This can be useful as a fallback in alternations.
+///
+/// ```
+/// use packrs::{Parser, Span, nothing};
+///
+/// assert_eq!(nothing::<()>().parse(""), Ok(Span::new(0..0, ())));
+/// assert_eq!(nothing::<()>().parse("whatever"), Ok(Span::new(0..0, ())));
+/// ```
+pub fn nothing<E>() -> Nothing<E> {
+    Nothing(PhantomData)
+}
+
+/// Create a parser that evaluates the given parsers in order, returning the first success.
+///
+/// If one of the given parsers evluates successfully, the result will be `Ok` with the parsed
+/// value. If all the given parsers fail, the result will be an `Err` with a `Vec` of the parse
+/// failures.
+///
+/// Note that all parsers must have the same type. [`map`](Parser::map) and
+/// [`map_err`](Parser::map_err) can be used to unify value and errors types, and
+/// [`Parser::as_ref`](Parser::as_ref) or [`Parser::boxed`](Parser::boxed) can be used to unify
+/// different parser types.
+///
+/// ```
+/// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
+///
+/// #[derive(Debug, PartialEq)]
+/// enum Op {
+///     Add,
+///     Sub,
+///     Mul,
+///     Div,
+/// }
+///
+/// let op = one_of(vec![
+///     chr('+').map(|_| Op::Add).boxed(),
+///     chr('-').map(|_| Op::Sub).boxed(),
+///     chr('*').map(|_| Op::Mul).boxed(),
+///     chr('/').map(|_| Op::Div).boxed(),
+/// ]);
+///
+/// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
+/// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
+/// assert_eq!(op.parse("÷"), Err(Span::new(0..2, vec![
+///     Span::new(0..2, ExpectedChar('+')),
+///     Span::new(0..2, ExpectedChar('-')),
+///     Span::new(0..2, ExpectedChar('*')),
+///     Span::new(0..2, ExpectedChar('/')),
+/// ])));
+/// ```
+pub fn one_of<'i, P>(parsers: Vec<P>) -> OneOf<P>
+where
+    P: Parser<'i>,
+{
+    OneOf(parsers)
+}
+
+/// Create a parser that will match the given string at the beginning on an input.
+///
+/// When given an input that starts with the given string, the result will be `Ok` with a subslice
+/// of the input containing the matched string. When given an input that does not start with the
+/// given string, the result will be an `Err` with
+/// [`ExpectedString`](crate::expression::string::ExpectedString)`(string)`.
+///
+/// ```
+/// use packrs::{ExpectedString, Parser, Span, string};
+///
+/// let check_hello = string("hello").check();
+///
+/// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
+/// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
+/// ```
+pub fn string(string: &str) -> String {
+    String(string)
+}
 
 /// A trait implemented by parsing expressions.
 pub trait Parser<'i> {
