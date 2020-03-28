@@ -1,6 +1,7 @@
 use core::iter::FromIterator;
 use core::marker::PhantomData;
 
+use crate::error::ExpectedEndOfInput;
 use crate::expression::*;
 use crate::span::Span;
 
@@ -18,7 +19,8 @@ type BoxedFn<I, O> = Box<dyn Fn(I) -> O>;
 /// different parser types.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
+/// use packrs::{Parser, Span, all_of, chr};
+/// use packrs::error::ExpectedChar;
 ///
 /// let hello = all_of("hello".chars().map(chr).collect()).collect();
 ///
@@ -41,7 +43,8 @@ where
 /// [`UnexpectedEndOfInput`](crate::expression::any::UnexpectedEndOfInput).
 ///
 /// ```
-/// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
+/// use packrs::{Parser, Span, all_of, any, chr};
+/// use packrs::error::UnexpectedEndOfInput;
 ///
 /// let first_word = all_of(vec![
 ///     chr(' ')
@@ -71,7 +74,8 @@ pub fn any() -> Any {
 /// with [`ExpectedChar`](crate::expression::chr::ExpectedChar)`(char)`.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
+/// use packrs::{Parser, Span, all_of, chr};
+/// use packrs::error::ExpectedChar;
 ///
 /// let hello = all_of("hello".chars().map(chr).collect()).collect();
 ///
@@ -88,7 +92,8 @@ pub fn chr(char: char) -> Chr {
 /// will be an `Err` with [`ExpectedEndOfInput`].
 ///
 /// ```
-/// use packrs::{ExpectedEndOfInput, Parser, Span, UnexpectedEndOfInput, all_of, any, end_of_input};
+/// use packrs::{Parser, Span, all_of, any, end_of_input};
+/// use packrs::error::{ExpectedEndOfInput, UnexpectedEndOfInput};
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Error {
@@ -148,7 +153,8 @@ pub fn nothing<E>() -> Nothing<E> {
 /// different parser types.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
+/// use packrs::{Parser, Span, chr, one_of};
+/// use packrs::error::ExpectedChar;
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Op {
@@ -189,7 +195,8 @@ where
 /// [`ExpectedString`](crate::expression::string::ExpectedString)`(string)`.
 ///
 /// ```
-/// use packrs::{ExpectedString, Parser, Span, string};
+/// use packrs::{Parser, Span, string};
+/// use packrs::error::ExpectedString;
 ///
 /// let check_hello = string("hello").check();
 ///
@@ -217,7 +224,8 @@ pub trait Parser<'i> {
     /// fails, the result will be an `Err` with the parse failure.
     ///
     /// ```
-    /// use packrs::{ExpectedString, Parser, Span, string};
+    /// use packrs::{Parser, Span, string};
+    /// use packrs::error::ExpectedString;
     ///
     /// let check_hello = string("hello").check();
     ///
@@ -237,7 +245,8 @@ pub trait Parser<'i> {
     /// result will be an `Err` with [`crate::expression::end_of_input::ExpectedEndOfInput`].
     ///
     /// ```
-    /// use packrs::{ExpectedEndOfInput, Parser, Span, UnexpectedEndOfInput, any};
+    /// use packrs::{Parser, Span, any};
+    /// use packrs::error::{ExpectedEndOfInput, UnexpectedEndOfInput};
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Error {
@@ -281,7 +290,8 @@ pub trait Parser<'i> {
     /// values. If either parser fails, the result will be an `Err` with the parse failure.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, Span, chr, string};
+    /// use packrs::{Parser, Span, chr, string};
+    /// use packrs::error::ExpectedChar;
     ///
     /// let expr = chr('1').join(string("+1").maybe());
     ///
@@ -310,7 +320,8 @@ pub trait Parser<'i> {
     /// parse failure.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
+    /// use packrs::{Parser, Span, chr, one_of};
+    /// use packrs::error::ExpectedChar;
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Op {
@@ -350,7 +361,8 @@ pub trait Parser<'i> {
     /// parser fails, the result will be an `Err` with `transform(<parse failure>)`.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
+    /// use packrs::{Parser, Span, chr, one_of};
+    /// use packrs::error::ExpectedChar;
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Op {
@@ -390,7 +402,8 @@ pub trait Parser<'i> {
     /// parsed value will be `None`.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, Span, all_of, chr, string};
+    /// use packrs::{Parser, Span, all_of, chr, string};
+    /// use packrs::error::ExpectedChar;
     ///
     /// let expr = all_of(vec![
     ///     chr('1').boxed(),
@@ -443,7 +456,8 @@ pub trait Parser<'i> {
     /// the result will be `Ok(())`.
     ///
     /// ```
-    /// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
+    /// use packrs::{Parser, Span, all_of, any, chr};
+    /// use packrs::error::UnexpectedEndOfInput;
     ///
     /// let first_word = all_of(vec![
     ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
@@ -471,7 +485,8 @@ pub trait Parser<'i> {
     /// evaluations.
     ///
     /// ```
-    /// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
+    /// use packrs::{Parser, Span, all_of, any, chr};
+    /// use packrs::error::UnexpectedEndOfInput;
     ///
     /// let first_word = all_of(vec![
     ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),

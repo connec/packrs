@@ -2,12 +2,9 @@
 //!
 //! See [`crate::any`].
 
+use crate::error::UnexpectedEndOfInput;
 use crate::parser::Parser;
 use crate::span::Span;
-
-/// A struct representing a failure due to unexpected end of input.
-#[derive(Debug, PartialEq)]
-pub struct UnexpectedEndOfInput;
 
 /// The struct returned from [`crate::any`].
 pub struct Any;
@@ -30,10 +27,11 @@ impl<'i> Parser<'i> for Any {
 mod tests {
     use quickcheck_macros::quickcheck;
 
+    use crate::error::UnexpectedEndOfInput;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{Any, UnexpectedEndOfInput};
+    use super::Any;
 
     #[test]
     fn match_ascii() {

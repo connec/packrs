@@ -2,12 +2,9 @@
 //!
 //! See [`crate::end_of_input`].
 
+use crate::error::ExpectedEndOfInput;
 use crate::parser::Parser;
 use crate::span::Span;
-
-/// A struct representing a failure due to finding input when end of input was expected.
-#[derive(Debug, PartialEq)]
-pub struct ExpectedEndOfInput;
 
 /// The struct returned from [`crate::end_of_input`].
 pub struct EndOfInput;
@@ -30,10 +27,11 @@ impl<'i> Parser<'i> for EndOfInput {
 mod tests {
     use quickcheck_macros::quickcheck;
 
+    use crate::error::ExpectedEndOfInput;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{EndOfInput, ExpectedEndOfInput};
+    use super::EndOfInput;
 
     #[test]
     fn ok_if_empty() {

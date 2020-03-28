@@ -37,10 +37,11 @@ mod test_expr;
 
 #[cfg(test)]
 mod tests {
+    use crate::error::ExpectedChar;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{AllOf, Chr, ExpectedChar, Map, MapErr, OneOf};
+    use super::{AllOf, Chr, Map, MapErr, OneOf};
 
     #[test]
     fn trivial_calculator() {

@@ -2,15 +2,9 @@
 //!
 //! See [`crate::chr`].
 
+use crate::error::ExpectedChar;
 use crate::parser::Parser;
 use crate::span::Span;
-
-/// A struct representing a failure due to a missing expected character.
-#[derive(Debug, PartialEq)]
-pub struct ExpectedChar(
-    /// The character that was expected.
-    pub char,
-);
 
 /// The struct returned from [`crate::chr`].
 pub struct Chr(pub(crate) char);
@@ -37,10 +31,11 @@ impl<'i> Parser<'i> for Chr {
 mod tests {
     use quickcheck_macros::quickcheck;
 
+    use crate::error::ExpectedChar;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{Chr, ExpectedChar};
+    use super::Chr;
 
     #[test]
     fn match_ascii() {
