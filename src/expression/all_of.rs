@@ -11,13 +11,13 @@ use crate::span::Span;
 /// of the successfully parsed values. If any parser fails, the result will be an `Err` with the
 /// parse failure.
 ///
-/// Note that all parsers must have the same type. [`map`](super::map::map) and
-/// [`map_err`](super::map_err::map_err) can be used to unify value and errors types, and
+/// Note that all parsers must have the same type. [`map`](crate::Parser::map) and
+/// [`map_err`](crate::Parser::map_err) can be used to unify value and errors types, and
 /// [`Parser::as_ref`](crate::Parser::as_ref) or [`Parser::boxed`](crate::Parser::boxed) can be used
 /// to unify different parser types.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Parser, ParserExt, Span, all_of, chr};
+/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
 ///
 /// let hello = all_of("hello".chars().map(chr).collect()).collect();
 ///

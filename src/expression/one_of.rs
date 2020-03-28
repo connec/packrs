@@ -13,13 +13,13 @@ use crate::span::Span;
 /// value. If all the given parsers fail, the result will be an `Err` with a `Vec` of the parse
 /// failures.
 ///
-/// Note that all parsers must have the same type. [`map`](super::map::map) and
-/// [`map_err`](super::map_err::map_err) can be used to unify value and errors types, and
+/// Note that all parsers must have the same type. [`map`](crate::Parser::map) and
+/// [`map_err`](crate::Parser::map_err) can be used to unify value and errors types, and
 /// [`Parser::as_ref`](crate::Parser::as_ref) or [`Parser::boxed`](crate::Parser::boxed) can be used
 /// to unify different parser types.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, one_of};
+/// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Op {

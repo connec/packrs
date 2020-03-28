@@ -14,9 +14,9 @@ use crate::span::Span;
 /// with [`ExpectedChar`]`(char)`.
 ///
 /// ```
-/// use packrs::{ExpectedChar, Parser, ParserExt, Span, all_of, chr};
+/// use packrs::{ExpectedChar, Parser, Span, all_of, chr};
 ///
-/// let hello = "hello".chars().map(chr).collect::<Vec<_>>().all_of().collect();
+/// let hello = all_of("hello".chars().map(chr).collect()).collect();
 ///
 /// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));

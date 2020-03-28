@@ -4,7 +4,6 @@
 
 pub mod expression;
 mod parser;
-mod parser_ext;
 mod span;
 
 pub use expression::all_of::all_of;
@@ -15,5 +14,4 @@ pub use expression::nothing::nothing;
 pub use expression::one_of::one_of;
 pub use expression::string::{string, ExpectedString};
 pub use parser::{ParseResult, Parser};
-pub use parser_ext::ParserExt;
 pub use span::Span;

@@ -13,17 +13,16 @@ use crate::span::Span;
 /// When given an empty input, the result will be an `Err` with [`UnexpectedEndOfInput`].
 ///
 /// ```
-/// use packrs::{Parser, ParserExt, Span, UnexpectedEndOfInput, any, chr};
+/// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
 ///
-/// let first_word = vec![
+/// let first_word = all_of(vec![
 ///     chr(' ')
 ///         .reject()
 ///         .map(|_| "")
 ///         .map_err(|_| UnexpectedEndOfInput)
 ///         .boxed(),
 ///     any().boxed(),
-/// ]
-///     .all_of()
+/// ])
 ///     .map(|mut v| v.pop().unwrap().take())
 ///     .repeat()
 ///     .collect();

@@ -51,7 +51,7 @@ pub trait Parser<'i> {
     /// result will be an `Err` with [`crate::expression::end_of_input::ExpectedEndOfInput`].
     ///
     /// ```
-    /// use packrs::{ExpectedEndOfInput, Parser, ParserExt, Span, UnexpectedEndOfInput, any};
+    /// use packrs::{ExpectedEndOfInput, Parser, Span, UnexpectedEndOfInput, any};
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Error {
@@ -95,7 +95,7 @@ pub trait Parser<'i> {
     /// values. If either parser fails, the result will be an `Err` with the parse failure.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, string};
+    /// use packrs::{ExpectedChar, Parser, Span, chr, string};
     ///
     /// let expr = chr('1').join(string("+1").maybe());
     ///
@@ -124,7 +124,7 @@ pub trait Parser<'i> {
     /// parse failure.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr};
+    /// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Op {
@@ -134,12 +134,12 @@ pub trait Parser<'i> {
     ///     Div,
     /// }
     ///
-    /// let op = vec![
+    /// let op = one_of(vec![
     ///     chr('+').map(|_| Op::Add).boxed(),
     ///     chr('-').map(|_| Op::Sub).boxed(),
     ///     chr('*').map(|_| Op::Mul).boxed(),
     ///     chr('/').map(|_| Op::Div).boxed(),
-    /// ].one_of();
+    /// ]);
     ///
     /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
     /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
@@ -164,7 +164,7 @@ pub trait Parser<'i> {
     /// parser fails, the result will be an `Err` with `transform(<parse failure>)`.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr};
+    /// use packrs::{ExpectedChar, Parser, Span, chr, one_of};
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Op {
@@ -177,14 +177,12 @@ pub trait Parser<'i> {
     /// #[derive(Debug, PartialEq)]
     /// struct InvalidOp;
     ///
-    /// let op =
-    ///     vec![
-    ///         chr('+').map(|_| Op::Add).boxed(),
-    ///         chr('-').map(|_| Op::Sub).boxed(),
-    ///         chr('*').map(|_| Op::Mul).boxed(),
-    ///         chr('/').map(|_| Op::Div).boxed(),
-    ///     ]
-    ///     .one_of()
+    /// let op = one_of(vec![
+    ///     chr('+').map(|_| Op::Add).boxed(),
+    ///     chr('-').map(|_| Op::Sub).boxed(),
+    ///     chr('*').map(|_| Op::Mul).boxed(),
+    ///     chr('/').map(|_| Op::Div).boxed(),
+    /// ])
     ///     .map_err(|_| InvalidOp);
     ///
     /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
@@ -206,9 +204,9 @@ pub trait Parser<'i> {
     /// parsed value will be `None`.
     ///
     /// ```
-    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, string};
+    /// use packrs::{ExpectedChar, Parser, Span, all_of, chr, string};
     ///
-    /// let expr = vec![
+    /// let expr = all_of(vec![
     ///     chr('1').boxed(),
     ///     string("+1")
     ///         .maybe()
@@ -217,8 +215,7 @@ pub trait Parser<'i> {
     ///             None => "",
     ///         })
     ///         .boxed()
-    /// ]
-    ///     .all_of()
+    /// ])
     ///     .collect();
     ///
     /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, "1".to_string())));
@@ -239,9 +236,9 @@ pub trait Parser<'i> {
     /// fails the first evaluation, the parsed value will be `vec![]`.
     ///
     /// ```
-    /// use packrs::{ParserExt, Parser, Span, chr};
+    /// use packrs::{Parser, Span, chr, one_of};
     ///
-    /// let binary = vec![chr('0'), chr('1')].one_of().maybe_repeat::<()>().collect();
+    /// let binary = one_of(vec![chr('0'), chr('1')]).maybe_repeat::<()>().collect();
     ///
     /// assert_eq!(binary.parse(""), Ok(Span::new(0..0, "".to_string())));
     /// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, "0101".to_string())));
@@ -260,13 +257,12 @@ pub trait Parser<'i> {
     /// the result will be `Ok(())`.
     ///
     /// ```
-    /// use packrs::{Parser, ParserExt, Span, UnexpectedEndOfInput, any, chr};
+    /// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
     ///
-    /// let first_word = vec![
+    /// let first_word = all_of(vec![
     ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
     ///     any().boxed(),
-    /// ]
-    ///     .all_of()
+    /// ])
     ///     .map(|mut v| v.pop().unwrap().take())
     ///     .repeat()
     ///     .collect();
@@ -283,19 +279,18 @@ pub trait Parser<'i> {
 
     /// Creates a parser that evaluates repeatedly, until it fails.
     ///
-    /// Unlike [`maybe_repeat`] this will fail if the parser fails to match the first time it is
-    /// evaluated, returning an `Err` with the parse failure. If the first evaluation succeeds, the
-    /// result will be a `Vec` of the parse results of successful evaluations.
+    /// Unlike [`maybe_repeat`](Parser::maybe_repeat) this will fail if the parser fails to match
+    /// the first time it is evaluated, returning an `Err` with the parse failure. If the first
+    /// evaluation succeeds, the result will be a `Vec` of the parse results of successful
+    /// evaluations.
     ///
     /// ```
-    /// use packrs::{Parser, ParserExt, Span, UnexpectedEndOfInput, any, chr};
+    /// use packrs::{Parser, Span, UnexpectedEndOfInput, all_of, any, chr};
     ///
-    /// let first_word =
-    ///     vec![
-    ///         chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
-    ///         any().boxed(),
-    ///     ]
-    ///     .all_of()
+    /// let first_word = all_of(vec![
+    ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///     any().boxed(),
+    /// ])
     ///     .map(|mut v| v.pop().unwrap().take())
     ///     .repeat()
     ///     .collect();
@@ -312,8 +307,9 @@ pub trait Parser<'i> {
 
     /// Convert this parser to one that collects its result.
     ///
-    /// This is paricularly useful for processing the results of [`all_of`], [`maybe_repeat`],
-    /// [`one_of`], and [`repeat`].
+    /// This is paricularly useful for processing the results of [`all_of`](crate::all_of),
+    /// [`maybe_repeat`](Parser::maybe_repeat), [`one_of`](crate::one_of), and
+    /// [`repeat`](Parser::repeat).
     fn collect<C, I>(self) -> Map<Self, BoxedFn<Self::Value, C>>
     where
         Self: Sized,

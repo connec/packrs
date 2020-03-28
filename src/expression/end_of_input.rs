@@ -11,7 +11,7 @@ use crate::span::Span;
 /// will be an `Err` with [`ExpectedEndOfInput`].
 ///
 /// ```
-/// use packrs::{ExpectedEndOfInput, Parser, ParserExt, Span, UnexpectedEndOfInput, any, end_of_input};
+/// use packrs::{ExpectedEndOfInput, Parser, Span, UnexpectedEndOfInput, all_of, any, end_of_input};
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Error {
@@ -31,11 +31,10 @@ use crate::span::Span;
 ///     }
 /// }
 ///
-/// let one_char = vec![
+/// let one_char = all_of(vec![
 ///     any().map_err(|err| err.into()).boxed(),
 ///     end_of_input().map(|_| "").map_err(|err| err.into()).boxed(),
-/// ]
-///     .all_of()
+/// ])
 ///     .collect();
 ///
 /// assert_eq!(one_char.parse(""), Err(Span::new(0..0, Error::UnexpectedEndOfInput)));
