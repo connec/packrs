@@ -17,7 +17,7 @@ use crate::span::Span;
 /// to unify different parser types.
 ///
 /// ```
-/// use packrs::{ExpectedChar, ParserExt, Span, all_of, chr};
+/// use packrs::{ExpectedChar, Parser, ParserExt, Span, all_of, chr};
 ///
 /// let hello = all_of("hello".chars().map(chr).collect()).collect();
 ///

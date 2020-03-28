@@ -26,8 +26,8 @@ mod tests {
     use crate::expression::all_of::all_of;
     use crate::expression::chr::chr;
     use crate::expression::chr::ExpectedChar;
-    use crate::expression::map::map;
-    use crate::expression::map_err::map_err;
+    use crate::expression::map::Map;
+    use crate::expression::map_err::MapErr;
     use crate::expression::one_of::one_of;
     use crate::parser::Parser;
     use crate::span::Span;
@@ -53,21 +53,21 @@ mod tests {
             InvalidOperator,
         }
 
-        let num = map_err(
+        let num = MapErr(
             one_of::<Box<dyn Parser<Value = _, Error = _>>>(vec![
-                Box::new(map(chr('1'), |_| Token::Num(1))),
-                Box::new(map(chr('2'), |_| Token::Num(2))),
+                Box::new(Map(chr('1'), |_| Token::Num(1))),
+                Box::new(Map(chr('2'), |_| Token::Num(2))),
             ]),
             |_: Vec<Span<ExpectedChar>>| CalcError::InvalidNumber,
         );
-        let op = map_err(
+        let op = MapErr(
             one_of::<Box<dyn Parser<Value = _, Error = _>>>(vec![
-                Box::new(map(chr('+'), |_| Token::OpAdd)),
-                Box::new(map(chr('-'), |_| Token::OpSub)),
+                Box::new(Map(chr('+'), |_| Token::OpAdd)),
+                Box::new(Map(chr('-'), |_| Token::OpSub)),
             ]),
             |_: Vec<Span<ExpectedChar>>| CalcError::InvalidOperator,
         );
-        let add = map(
+        let add = Map(
             all_of::<&dyn Parser<Value = _, Error = _>>(vec![&num, &op, &num]),
             |mut seq: Vec<Span<Token>>| {
                 let mut seq = seq.drain(0..3);
@@ -88,7 +88,7 @@ mod tests {
                 Expr::Add(a, b)
             },
         );
-        let expr_num = map(&num, |token| match token {
+        let expr_num = Map(&num, |token| match token {
             Token::Num(n) => Expr::Num(n),
             _ => unreachable!(),
         });

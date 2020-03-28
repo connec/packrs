@@ -1,4 +1,18 @@
+use core::iter::FromIterator;
+use core::marker::PhantomData;
+
+use crate::expression::check::Check;
+use crate::expression::end_of_input::{EndOfInput, ExpectedEndOfInput};
+use crate::expression::join::Join;
+use crate::expression::map::Map;
+use crate::expression::map_err::MapErr;
+use crate::expression::maybe::Maybe;
+use crate::expression::maybe_repeat::MaybeRepeat;
+use crate::expression::reject::Reject;
+use crate::expression::repeat::Repeat;
 use crate::span::Span;
+
+type BoxedFn<I, O> = Box<dyn Fn(I) -> O>;
 
 /// A trait implemented by parsing expressions.
 pub trait Parser<'i> {
@@ -8,8 +22,306 @@ pub trait Parser<'i> {
     /// The type returned in failed parse results.
     type Error;
 
-    /// Parse a given input and produce a result.
+    /// Parses a given input and returns the result.
     fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>>;
+
+    /// Creates a parser that will evaluate without consuming input or producing a value.
+    ///
+    /// If the parser evaluates successfully, the result will be `Ok` with `()`. If the parser
+    /// fails, the result will be an `Err` with the parse failure.
+    ///
+    /// ```
+    /// use packrs::{ExpectedString, Parser, Span, string};
+    ///
+    /// let check_hello = string("hello").check();
+    ///
+    /// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
+    /// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
+    /// ```
+    fn check(self) -> Check<Self>
+    where
+        Self: Sized,
+    {
+        Check(self)
+    }
+
+    /// Creates a parser that fails if there is remaining input.
+    ///
+    /// When given an empty input, the result will be `Ok(())`. When given a non-empty input the
+    /// result will be an `Err` with [`crate::expression::end_of_input::ExpectedEndOfInput`].
+    ///
+    /// ```
+    /// use packrs::{ExpectedEndOfInput, Parser, ParserExt, Span, UnexpectedEndOfInput, any};
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// enum Error {
+    ///     ExpectedEndOfInput,
+    ///     UnexpectedEndOfInput,
+    /// }
+    ///
+    /// impl From<ExpectedEndOfInput> for Error {
+    ///     fn from(_: ExpectedEndOfInput) -> Self {
+    ///         Error::ExpectedEndOfInput
+    ///     }
+    /// }
+    ///
+    /// impl From<UnexpectedEndOfInput> for Error {
+    ///     fn from(_: UnexpectedEndOfInput) -> Self {
+    ///         Error::UnexpectedEndOfInput
+    ///     }
+    /// }
+    ///
+    /// let one_char = any().end();
+    ///
+    /// assert_eq!(one_char.parse(""), Err(Span::new(0..0, Error::UnexpectedEndOfInput)));
+    /// assert_eq!(one_char.parse("💩"), Ok(Span::new(0..4, "💩")));
+    /// assert_eq!(one_char.parse("नि"), Err(Span::new(3..6, Error::ExpectedEndOfInput)));
+    /// ```
+    fn end<'p, E>(self) -> Box<dyn Parser<'i, Value = Self::Value, Error = E> + 'p>
+    where
+        Self: Sized + 'p,
+        E: From<Self::Error> + From<ExpectedEndOfInput> + 'p,
+        'i: 'p,
+    {
+        Box::new(Map(
+            Join(MapErr(self, E::from), MapErr(EndOfInput, E::from)),
+            |(value, _): (Span<_>, _)| value.take(),
+        ))
+    }
+
+    /// Creates a parser that will evaluate two parsers and combine their results.
+    ///
+    /// If both parsers evaluate successfully, the result will be `Ok` with a tuple of the parsed
+    /// values. If either parser fails, the result will be an `Err` with the parse failure.
+    ///
+    /// ```
+    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, string};
+    ///
+    /// let expr = chr('1').join(string("+1").maybe());
+    ///
+    /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, (
+    ///     Span::new(0..1, "1"),
+    ///     Span::new(1..1, None)
+    /// ))));
+    /// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, (
+    ///     Span::new(0..1, "1"),
+    ///     Span::new(1..3, Some(Span::new(0..2, "+1"))),
+    /// ))));
+    /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
+    /// ```
+    fn join<P>(self, other: P) -> Join<Self, P>
+    where
+        Self: Sized,
+        P: Parser<'i, Error = Self::Error>,
+    {
+        Join(self, other)
+    }
+
+    /// Creates a parser that will transform a successful result with the given function.
+    ///
+    /// If the parser evaluates successfully, the result will be `Ok` with
+    /// `transform(<parsed value>)`. If the given parser fails, the result will be an `Err` with the
+    /// parse failure.
+    ///
+    /// ```
+    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr};
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// enum Op {
+    ///     Add,
+    ///     Sub,
+    ///     Mul,
+    ///     Div,
+    /// }
+    ///
+    /// let op = vec![
+    ///     chr('+').map(|_| Op::Add).boxed(),
+    ///     chr('-').map(|_| Op::Sub).boxed(),
+    ///     chr('*').map(|_| Op::Mul).boxed(),
+    ///     chr('/').map(|_| Op::Div).boxed(),
+    /// ].one_of();
+    ///
+    /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
+    /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
+    /// assert_eq!(op.parse("÷"), Err(Span::new(0..2, vec![
+    ///     Span::new(0..2, ExpectedChar('+')),
+    ///     Span::new(0..2, ExpectedChar('-')),
+    ///     Span::new(0..2, ExpectedChar('*')),
+    ///     Span::new(0..2, ExpectedChar('/')),
+    /// ])));
+    /// ```
+    fn map<F, U>(self, transform: F) -> Map<Self, F>
+    where
+        Self: Sized,
+        F: Fn(Self::Value) -> U,
+    {
+        Map(self, transform)
+    }
+
+    /// Creates a parser that will transform a failure with the given function.
+    ///
+    /// If the parser evaluates successfully, the result will be `Ok` with the parsed value. If the
+    /// parser fails, the result will be an `Err` with `transform(<parse failure>)`.
+    ///
+    /// ```
+    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr};
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// enum Op {
+    ///     Add,
+    ///     Sub,
+    ///     Mul,
+    ///     Div,
+    /// }
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// struct InvalidOp;
+    ///
+    /// let op =
+    ///     vec![
+    ///         chr('+').map(|_| Op::Add).boxed(),
+    ///         chr('-').map(|_| Op::Sub).boxed(),
+    ///         chr('*').map(|_| Op::Mul).boxed(),
+    ///         chr('/').map(|_| Op::Div).boxed(),
+    ///     ]
+    ///     .one_of()
+    ///     .map_err(|_| InvalidOp);
+    ///
+    /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
+    /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
+    /// assert_eq!(op.parse("÷"), Err(Span::new(0..2, InvalidOp)));
+    /// ```
+    fn map_err<F, E>(self, transform: F) -> MapErr<Self, F>
+    where
+        Self: Sized,
+        F: Fn(Self::Error) -> E,
+    {
+        MapErr(self, transform)
+    }
+
+    /// Creates a parser that will convert the result into an `Option`.
+    ///
+    /// The returned parser will always evaluate successfully. If this parser evaluates
+    /// successfully, the parsed value will become `Some(<parsed value>)`. If this parser fails, the
+    /// parsed value will be `None`.
+    ///
+    /// ```
+    /// use packrs::{ExpectedChar, Parser, ParserExt, Span, chr, string};
+    ///
+    /// let expr = vec![
+    ///     chr('1').boxed(),
+    ///     string("+1")
+    ///         .maybe()
+    ///         .map(|opt| match opt {
+    ///             Some(span) => span.take(),
+    ///             None => "",
+    ///         })
+    ///         .boxed()
+    /// ]
+    ///     .all_of()
+    ///     .collect();
+    ///
+    /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, "1".to_string())));
+    /// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, "1+1".to_string())));
+    /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
+    /// ```
+    fn maybe<E>(self) -> Maybe<Self, E>
+    where
+        Self: Sized,
+    {
+        Maybe(self, PhantomData)
+    }
+
+    /// Creates a parser that will evaluate repeatedly, until it fails.
+    ///
+    /// The returned parser will always evaluate successfully, and the parsed value will be a `Vec`
+    /// of the parse results of the successful evaluations of this parser. E.g., if this parser
+    /// fails the first evaluation, the parsed value will be `vec![]`.
+    ///
+    /// ```
+    /// use packrs::{ParserExt, Parser, Span, chr};
+    ///
+    /// let binary = vec![chr('0'), chr('1')].one_of().maybe_repeat::<()>().collect();
+    ///
+    /// assert_eq!(binary.parse(""), Ok(Span::new(0..0, "".to_string())));
+    /// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, "0101".to_string())));
+    /// assert_eq!(binary.parse("012"), Ok(Span::new(0..2, "01".to_string())));
+    /// ```
+    fn maybe_repeat<E>(self) -> MaybeRepeat<Self, E>
+    where
+        Self: Sized,
+    {
+        MaybeRepeat(self, PhantomData)
+    }
+
+    /// Creates a parser that will invert its result, without consuming input or producing a value.
+    ///
+    /// If this parser evaluates successfully, the result will be `Err(())`. If this parser fails,
+    /// the result will be `Ok(())`.
+    ///
+    /// ```
+    /// use packrs::{Parser, ParserExt, Span, UnexpectedEndOfInput, any, chr};
+    ///
+    /// let first_word = vec![
+    ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///     any().boxed(),
+    /// ]
+    ///     .all_of()
+    ///     .map(|mut v| v.pop().unwrap().take())
+    ///     .repeat()
+    ///     .collect();
+    ///
+    /// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
+    /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
+    /// ```
+    fn reject(self) -> Reject<Self>
+    where
+        Self: Sized,
+    {
+        Reject(self)
+    }
+
+    /// Creates a parser that evaluates repeatedly, until it fails.
+    ///
+    /// Unlike [`maybe_repeat`] this will fail if the parser fails to match the first time it is
+    /// evaluated, returning an `Err` with the parse failure. If the first evaluation succeeds, the
+    /// result will be a `Vec` of the parse results of successful evaluations.
+    ///
+    /// ```
+    /// use packrs::{Parser, ParserExt, Span, UnexpectedEndOfInput, any, chr};
+    ///
+    /// let first_word =
+    ///     vec![
+    ///         chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///         any().boxed(),
+    ///     ]
+    ///     .all_of()
+    ///     .map(|mut v| v.pop().unwrap().take())
+    ///     .repeat()
+    ///     .collect();
+    ///
+    /// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
+    /// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
+    /// ```
+    fn repeat(self) -> Repeat<Self>
+    where
+        Self: Sized,
+    {
+        Repeat(self)
+    }
+
+    /// Convert this parser to one that collects its result.
+    ///
+    /// This is paricularly useful for processing the results of [`all_of`], [`maybe_repeat`],
+    /// [`one_of`], and [`repeat`].
+    fn collect<C, I>(self) -> Map<Self, BoxedFn<Self::Value, C>>
+    where
+        Self: Sized,
+        Self::Value: IntoIterator<Item = Span<I>>,
+        C: FromIterator<I>,
+    {
+        self.map(Box::new(|v| v.into_iter().map(|i| i.take()).collect()))
+    }
 
     /// Turn a parser into a boxed trait object.
     ///
@@ -28,7 +340,7 @@ pub trait Parser<'i> {
     /// compatible) parsers.
     fn as_ref(&self) -> &dyn Parser<'i, Value = Self::Value, Error = Self::Error>
     where
-        Self: std::marker::Sized,
+        Self: Sized,
     {
         self
     }
@@ -77,7 +389,7 @@ impl<V, E> ParseResult<V, E> for Result<Span<V>, Span<E>> {
 mod tests {
     use crate::span::Span;
 
-    use super::ParseResult;
+    use super::{ParseResult, Parser};
 
     #[test]
     fn test_parse_result_ok_relative_to() {
@@ -89,5 +401,17 @@ mod tests {
     fn test_parse_result_err_relative_to() {
         let result: Result<Span<()>, _> = Err(Span::new(0..1, 2));
         assert_eq!(result.relative_to(5), Err(Span::new(5..6, 2)));
+    }
+
+    #[test]
+    fn test_parser_collect() {
+        use crate::any;
+
+        let expr = any().repeat().collect();
+
+        assert_eq!(
+            expr.parse("hello"),
+            Ok(Span::new(0..5, "hello".to_string()))
+        );
     }
 }

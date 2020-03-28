@@ -1,36 +1,14 @@
 //! An expression that evaluates a sub-expression repeatedly, until it fails.
 //!
-//! See [`maybe_repeat`].
+//! See [`crate::Parser::maybe_repeat`].
 
 use core::marker::PhantomData;
 
 use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
-/// Create a parser that will evaluate the given parser repeatedly, until it fails.
-///
-/// This will always return `Ok`, with a `Vec` of the parse results of all the successful
-/// evaluations of the given parser. E.g., if the given parser fails the first evaluation, the
-/// result will be `Ok(vec![])`.
-///
-/// ```
-/// use packrs::{ParserExt, Span, chr, maybe_repeat};
-///
-/// let binary = maybe_repeat::<_, ()>(vec![chr('0'), chr('1')].one_of()).collect();
-///
-/// assert_eq!(binary.parse(""), Ok(Span::new(0..0, "".to_string())));
-/// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, "0101".to_string())));
-/// assert_eq!(binary.parse("012"), Ok(Span::new(0..2, "01".to_string())));
-/// ```
-pub fn maybe_repeat<'i, P, E>(parser: P) -> MaybeRepeat<P, E>
-where
-    P: Parser<'i>,
-{
-    MaybeRepeat(parser, PhantomData)
-}
-
-/// The struct returned from [`maybe_repeat`].
-pub struct MaybeRepeat<P, E>(P, PhantomData<E>);
+/// The struct returned from [`crate::Parser::maybe_repeat`].
+pub struct MaybeRepeat<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
 impl<'i, P, E> Parser<'i> for MaybeRepeat<P, E>
 where
@@ -55,6 +33,7 @@ where
 #[cfg(test)]
 mod tests {
     use core::iter::repeat;
+    use core::marker::PhantomData;
     use core::ops::Range;
     use quickcheck::{Arbitrary, Gen};
     use quickcheck_macros::quickcheck;
@@ -63,12 +42,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::maybe_repeat;
+    use super::MaybeRepeat;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            maybe_repeat::<_, ()>(TestExpr::ok_iters(0..1, 100))
+            MaybeRepeat::<_, ()>(TestExpr::ok_iters(0..1, 100), PhantomData)
                 .parse(&repeat('a').take(100).collect::<String>()[..]),
             Ok(Span::new(
                 0..100,
@@ -84,7 +63,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            maybe_repeat::<_, ()>(TestExpr::err(77..367)).parse("whatever"),
+            MaybeRepeat::<_, ()>(TestExpr::err(77..367), PhantomData).parse("whatever"),
             Ok(Span::new(0..0, vec![]))
         );
     }
@@ -110,7 +89,7 @@ mod tests {
     #[quickcheck]
     fn parse(TestData((expr, input)): TestData) {
         assert_eq!(
-            maybe_repeat::<_, ()>(&expr).parse(&input),
+            MaybeRepeat::<_, ()>(&expr, PhantomData).parse(&input),
             match expr {
                 ParseMatch(config, iters) => {
                     let segment = config.range().end;

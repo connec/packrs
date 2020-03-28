@@ -12,9 +12,9 @@ use crate::span::Span;
 /// given string, the result will be an `Err` with [`ExpectedString`]`(string)`.
 ///
 /// ```
-/// use packrs::{ExpectedString, Parser, Span, check, string};
+/// use packrs::{ExpectedString, Parser, Span, string};
 ///
-/// let check_hello = check(string("hello"));
+/// let check_hello = string("hello").check();
 ///
 /// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
 /// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));

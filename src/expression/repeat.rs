@@ -1,41 +1,12 @@
 //! An expression that evaluates a sub-expression at least once, then repeatedly until it fails.
 //!
-//! See [`repeat`].
+//! See [`crate::Parser::repeat`].
 
 use crate::parser::{ParseResult, Parser};
 use crate::span::Span;
 
-/// Create a parser that will evaluate the given parser repeatedly, until it fails.
-///
-/// Unlike [`maybe_repeat`](super::maybe_repeat::maybe_repeat) this will fail if the given parser
-/// fails to match the first time it is evaluated, returning an `Err` with the parse failure. If the
-/// first evaluation succeeds, the result will be `Ok` with a `Vec` of the parse results of
-/// successful evaluations.
-///
-/// ```
-/// use packrs::{Parser, ParserExt, Span, UnexpectedEndOfInput, any, chr, repeat};
-///
-/// let first_word = repeat(
-///     vec![
-///         chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
-///         any().boxed(),
-///     ]
-///     .all_of()
-///     .map(|mut v| v.pop().unwrap().take())
-/// ).collect();
-///
-/// assert_eq!(first_word.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
-/// assert_eq!(first_word.parse(""), Err(Span::new(0..0, UnexpectedEndOfInput)));
-/// ```
-pub fn repeat<'i, P>(parser: P) -> Repeat<P>
-where
-    P: Parser<'i>,
-{
-    Repeat(parser)
-}
-
-/// The struct returned from [`repeat`].
-pub struct Repeat<P>(P);
+/// The struct returned from [`crate::Parser::repeat`].
+pub struct Repeat<P>(pub(crate) P);
 
 impl<'i, P> Parser<'i> for Repeat<P>
 where
@@ -69,12 +40,12 @@ mod tests {
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::repeat;
+    use super::Repeat;
 
     #[test]
     fn p_match() {
         assert_eq!(
-            repeat(TestExpr::ok_iters(0..1, 100))
+            Repeat(TestExpr::ok_iters(0..1, 100))
                 .parse(&iter_repeat('a').take(100).collect::<String>()[..]),
             Ok(Span::new(
                 0..100,
@@ -90,7 +61,7 @@ mod tests {
     #[test]
     fn p_error() {
         assert_eq!(
-            repeat(TestExpr::err(77..367)).parse("whatever"),
+            Repeat(TestExpr::err(77..367)).parse("whatever"),
             Err(Span::new(77..367, TestError))
         );
     }
@@ -116,7 +87,7 @@ mod tests {
     #[quickcheck]
     fn parse(TestData((expr, input)): TestData) {
         assert_eq!(
-            repeat(&expr).parse(&input),
+            Repeat(&expr).parse(&input),
             match expr {
                 ParseMatch(config, iters) => {
                     let segment = config.range().end;
