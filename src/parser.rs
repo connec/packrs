@@ -1,21 +1,7 @@
 use core::iter::FromIterator;
 use core::marker::PhantomData;
 
-use crate::expression::all_of::AllOf;
-use crate::expression::any::Any;
-use crate::expression::check::Check;
-use crate::expression::chr::Chr;
-use crate::expression::end_of_input::{EndOfInput, ExpectedEndOfInput};
-use crate::expression::join::Join;
-use crate::expression::map::Map;
-use crate::expression::map_err::MapErr;
-use crate::expression::maybe::Maybe;
-use crate::expression::maybe_repeat::MaybeRepeat;
-use crate::expression::nothing::Nothing;
-use crate::expression::one_of::OneOf;
-use crate::expression::reject::Reject;
-use crate::expression::repeat::Repeat;
-use crate::expression::string::String;
+use crate::expression::*;
 use crate::span::Span;
 
 type BoxedFn<I, O> = Box<dyn Fn(I) -> O>;

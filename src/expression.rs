@@ -1,35 +1,46 @@
-//! Parsing expressions based on a [`Parser`] trait.
-//!
-//! [`Parser`]: trait.Parser.html
+//! Parsing expressions that implement the [`Parser`](crate::Parser) trait.
 
-pub mod all_of;
-pub mod any;
-pub mod check;
-pub mod chr;
-pub mod end_of_input;
-pub mod join;
-pub mod map;
-pub mod map_err;
-pub mod maybe;
-pub mod maybe_repeat;
-pub mod nothing;
-pub mod one_of;
-pub mod reject;
-pub mod repeat;
-pub mod string;
+mod all_of;
+mod any;
+mod check;
+mod chr;
+mod end_of_input;
+mod join;
+mod map;
+mod map_err;
+mod maybe;
+mod maybe_repeat;
+mod nothing;
+mod one_of;
+mod reject;
+mod repeat;
+mod string;
+
+pub use all_of::*;
+pub use any::*;
+pub use check::*;
+pub use chr::*;
+pub use end_of_input::*;
+pub use join::*;
+pub use map::*;
+pub use map_err::*;
+pub use maybe::*;
+pub use maybe_repeat::*;
+pub use nothing::*;
+pub use one_of::*;
+pub use reject::*;
+pub use repeat::*;
+pub use string::*;
 
 #[cfg(test)]
 mod test_expr;
 
 #[cfg(test)]
 mod tests {
-    use crate::expression::all_of::AllOf;
-    use crate::expression::chr::{Chr, ExpectedChar};
-    use crate::expression::map::Map;
-    use crate::expression::map_err::MapErr;
-    use crate::expression::one_of::OneOf;
     use crate::parser::Parser;
     use crate::span::Span;
+
+    use super::{AllOf, Chr, ExpectedChar, Map, MapErr, OneOf};
 
     #[test]
     fn trivial_calculator() {
