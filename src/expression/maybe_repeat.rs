@@ -4,8 +4,10 @@
 
 use core::marker::PhantomData;
 
-use crate::parser::{ParseResult, Parser};
+use crate::parser::Parser;
 use crate::span::Span;
+
+use super::ParseResultExt;
 
 /// The struct returned from [`crate::Parser::maybe_repeat`].
 pub struct MaybeRepeat<P, E>(pub(crate) P, pub(crate) PhantomData<E>);

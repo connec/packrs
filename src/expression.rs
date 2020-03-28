@@ -16,6 +16,8 @@ mod reject;
 mod repeat;
 mod string;
 
+use crate::Span;
+
 pub use all_of::*;
 pub use any::*;
 pub use check::*;
@@ -35,13 +37,36 @@ pub use string::*;
 #[cfg(test)]
 mod test_expr;
 
+trait ParseResultExt<V, E> {
+    fn relative_to(self, end: usize) -> Result<Span<V>, Span<E>>;
+}
+
+impl<V, E> ParseResultExt<V, E> for Result<Span<V>, Span<E>> {
+    fn relative_to(self, end: usize) -> Self {
+        self.map(|value| value.relative_to(end))
+            .map_err(|value| value.relative_to(end))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::error::ExpectedChar;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{AllOf, Chr, Map, MapErr, OneOf};
+    use super::{AllOf, Chr, Map, MapErr, OneOf, ParseResultExt};
+
+    #[test]
+    fn test_span_ext_result_ok_relative_to() {
+        let result: Result<_, Span<()>> = Ok(Span::new(0..1, 2));
+        assert_eq!(result.relative_to(5), Ok(Span::new(5..6, 2)));
+    }
+
+    #[test]
+    fn test_span_ext_result_err_relative_to() {
+        let result: Result<Span<()>, _> = Err(Span::new(0..1, 2));
+        assert_eq!(result.relative_to(5), Err(Span::new(5..6, 2)));
+    }
 
     #[test]
     fn trivial_calculator() {

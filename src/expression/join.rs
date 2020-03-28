@@ -2,8 +2,10 @@
 //!
 //! See [`crate::Parser::join`].
 
-use crate::parser::{ParseResult, Parser};
+use crate::parser::Parser;
 use crate::span::Span;
+
+use super::ParseResultExt;
 
 /// The struct returned from [`crate::Parser::join`].
 pub struct Join<P1, P2>(pub(crate) P1, pub(crate) P2);

@@ -2,8 +2,10 @@
 //!
 //! See [`crate::Parser::repeat`].
 
-use crate::parser::{ParseResult, Parser};
+use crate::parser::Parser;
 use crate::span::Span;
+
+use super::ParseResultExt;
 
 /// The struct returned from [`crate::Parser::repeat`].
 pub struct Repeat<P>(pub(crate) P);
