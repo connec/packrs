@@ -10,15 +10,15 @@ use super::ParseResultExt;
 /// The struct returned from [`crate::Parser::join`].
 pub struct Join<P1, P2>(pub(crate) P1, pub(crate) P2);
 
-impl<'i, P1, P2> Parser<'i> for Join<P1, P2>
+impl<P1, P2> Parser for Join<P1, P2>
 where
-    P1: Parser<'i>,
-    P2: Parser<'i, Error = P1::Error>,
+    P1: Parser,
+    P2: Parser<Error = P1::Error>,
 {
     type Value = (Span<P1::Value>, Span<P2::Value>);
     type Error = P1::Error;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let v1 = self.0.parse(input)?;
         let v2 = self.1.parse(&input[v1.end()..]).relative_to(v1.end())?;
 

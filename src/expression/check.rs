@@ -8,14 +8,14 @@ use crate::span::Span;
 /// The struct returned from [`crate::Parser::check`].
 pub struct Check<P>(pub(crate) P);
 
-impl<'i, P> Parser<'i> for Check<P>
+impl<P> Parser for Check<P>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     type Value = ();
     type Error = P::Error;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map(|_| Span::new(0..0, ()))
     }
 }

@@ -9,13 +9,13 @@ use crate::span::Span;
 /// The struct returned from [`crate::string`].
 pub struct String<'s>(pub(crate) &'s str);
 
-impl<'s, 'i> Parser<'i> for String<'s> {
-    type Value = &'i str;
+impl<'s> Parser for String<'s> {
+    type Value = &'s str;
     type Error = ExpectedString<'s>;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         if input.starts_with(self.0) {
-            Ok(Span::new(0..self.0.len(), &input[0..self.0.len()]))
+            Ok(Span::new(0..self.0.len(), self.0))
         } else {
             let actual = input
                 .chars()

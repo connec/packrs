@@ -10,14 +10,14 @@ use crate::span::Span;
 /// The struct returned from [`crate::Parser::maybe`].
 pub struct Maybe<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
-impl<'i, P, E> Parser<'i> for Maybe<P, E>
+impl<P, E> Parser for Maybe<P, E>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     type Value = Option<Span<P::Value>>;
     type Error = E;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         Ok(match self.0.parse(input) {
             Ok(value) => Span::new(value.start()..value.end(), Some(value)),
             Err(_) => Span::new(0..0, None),

@@ -27,9 +27,9 @@ type BoxedFn<I, O> = Box<dyn Fn(I) -> O>;
 /// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
 /// assert_eq!(hello.parse("world"), Err(Span::new(0..1, ExpectedChar('h'))));
 /// ```
-pub fn all_of<'i, P>(parsers: Vec<P>) -> AllOf<P>
+pub fn all_of<P>(parsers: Vec<P>) -> AllOf<P>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     AllOf(parsers)
 }
@@ -49,10 +49,10 @@ where
 /// let first_word = all_of(vec![
 ///     chr(' ')
 ///         .reject()
-///         .map(|_| "")
+///         .map(|_| "".to_string())
 ///         .map_err(|_| UnexpectedEndOfInput)
 ///         .boxed(),
-///     any().boxed(),
+///     any().map(|char| char.to_string()).boxed(),
 /// ])
 ///     .map(|mut v| v.pop().unwrap().take())
 ///     .repeat()
@@ -114,8 +114,8 @@ pub fn chr(char: char) -> Chr {
 /// }
 ///
 /// let one_char = all_of(vec![
-///     any().map_err(|err| err.into()).boxed(),
-///     end_of_input().map(|_| "").map_err(|err| err.into()).boxed(),
+///     any().map(|char| char.to_string()).map_err(|err| err.into()).boxed(),
+///     end_of_input().map(|_| "".to_string()).map_err(|err| err.into()).boxed(),
 /// ])
 ///     .collect();
 ///
@@ -180,9 +180,9 @@ pub fn nothing<E>() -> Nothing<E> {
 ///     Span::new(0..2, ExpectedChar('/')),
 /// ])));
 /// ```
-pub fn one_of<'i, P>(parsers: Vec<P>) -> OneOf<P>
+pub fn one_of<P>(parsers: Vec<P>) -> OneOf<P>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     OneOf(parsers)
 }
@@ -208,7 +208,7 @@ pub fn string(string: &str) -> String {
 }
 
 /// A trait implemented by parsing expressions.
-pub trait Parser<'i> {
+pub trait Parser {
     /// The type returned in successful parse results.
     type Value;
 
@@ -216,7 +216,7 @@ pub trait Parser<'i> {
     type Error;
 
     /// Parses a given input and returns the result.
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>>;
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>>;
 
     /// Creates a parser that will evaluate without consuming input or producing a value.
     ///
@@ -269,14 +269,13 @@ pub trait Parser<'i> {
     /// let one_char = any().end();
     ///
     /// assert_eq!(one_char.parse(""), Err(Span::new(0..0, Error::UnexpectedEndOfInput)));
-    /// assert_eq!(one_char.parse("💩"), Ok(Span::new(0..4, "💩")));
+    /// assert_eq!(one_char.parse("💩"), Ok(Span::new(0..4, '💩')));
     /// assert_eq!(one_char.parse("नि"), Err(Span::new(3..6, Error::ExpectedEndOfInput)));
     /// ```
-    fn end<'p, E>(self) -> Box<dyn Parser<'i, Value = Self::Value, Error = E> + 'p>
+    fn end<'p, E>(self) -> Box<dyn Parser<Value = Self::Value, Error = E> + 'p>
     where
         Self: Sized + 'p,
         E: From<Self::Error> + From<ExpectedEndOfInput> + 'p,
-        'i: 'p,
     {
         Box::new(Map(
             Join(MapErr(self, E::from), MapErr(EndOfInput, E::from)),
@@ -296,11 +295,11 @@ pub trait Parser<'i> {
     /// let expr = chr('1').join(string("+1").maybe());
     ///
     /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, (
-    ///     Span::new(0..1, "1"),
+    ///     Span::new(0..1, '1'),
     ///     Span::new(1..1, None)
     /// ))));
     /// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, (
-    ///     Span::new(0..1, "1"),
+    ///     Span::new(0..1, '1'),
     ///     Span::new(1..3, Some(Span::new(0..2, "+1"))),
     /// ))));
     /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
@@ -308,7 +307,7 @@ pub trait Parser<'i> {
     fn join<P>(self, other: P) -> Join<Self, P>
     where
         Self: Sized,
-        P: Parser<'i, Error = Self::Error>,
+        P: Parser<Error = Self::Error>,
     {
         Join(self, other)
     }
@@ -406,13 +405,14 @@ pub trait Parser<'i> {
     /// use packrs::error::ExpectedChar;
     ///
     /// let expr = all_of(vec![
-    ///     chr('1').boxed(),
+    ///     chr('1').map(|c| c.to_string()).boxed(),
     ///     string("+1")
     ///         .maybe()
     ///         .map(|opt| match opt {
     ///             Some(span) => span.take(),
     ///             None => "",
     ///         })
+    ///         .map(|s| s.to_string())
     ///         .boxed()
     /// ])
     ///     .collect();
@@ -460,8 +460,8 @@ pub trait Parser<'i> {
     /// use packrs::error::UnexpectedEndOfInput;
     ///
     /// let first_word = all_of(vec![
-    ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
-    ///     any().boxed(),
+    ///     chr(' ').reject().map(|_| "".to_string()).map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///     any().map(|char| char.to_string()).boxed(),
     /// ])
     ///     .map(|mut v| v.pop().unwrap().take())
     ///     .repeat()
@@ -489,8 +489,8 @@ pub trait Parser<'i> {
     /// use packrs::error::UnexpectedEndOfInput;
     ///
     /// let first_word = all_of(vec![
-    ///     chr(' ').reject().map(|_| "").map_err(|_| UnexpectedEndOfInput).boxed(),
-    ///     any().boxed(),
+    ///     chr(' ').reject().map(|_| "".to_string()).map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///     any().map(|char| char.to_string()).boxed(),
     /// ])
     ///     .map(|mut v| v.pop().unwrap().take())
     ///     .repeat()
@@ -524,7 +524,7 @@ pub trait Parser<'i> {
     ///
     /// This is particularly useful when constructing `AllOf` or `OneOf` with different (but
     /// compatible) parsers.
-    fn boxed<'p>(self) -> Box<dyn Parser<'i, Value = Self::Value, Error = Self::Error> + 'p>
+    fn boxed<'p>(self) -> Box<dyn Parser<Value = Self::Value, Error = Self::Error> + 'p>
     where
         Self: Sized + 'p,
     {
@@ -535,7 +535,7 @@ pub trait Parser<'i> {
     ///
     /// This is particularly useful when constructing `AllOf` or `OneOf` with different (but
     /// compatible) parsers.
-    fn as_ref(&self) -> &dyn Parser<'i, Value = Self::Value, Error = Self::Error>
+    fn as_ref(&self) -> &dyn Parser<Value = Self::Value, Error = Self::Error>
     where
         Self: Sized,
     {
@@ -543,28 +543,28 @@ pub trait Parser<'i> {
     }
 }
 
-impl<'i, P> Parser<'i> for &P
+impl<P> Parser for &P
 where
-    P: Parser<'i> + ?Sized,
+    P: Parser + ?Sized,
 {
     type Value = P::Value;
 
     type Error = P::Error;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         (*self).parse(input)
     }
 }
 
-impl<'i, P> Parser<'i> for Box<P>
+impl<P> Parser for Box<P>
 where
-    P: Parser<'i> + ?Sized,
+    P: Parser + ?Sized,
 {
     type Value = P::Value;
 
     type Error = P::Error;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         std::convert::AsRef::as_ref(self).parse(input)
     }
 }

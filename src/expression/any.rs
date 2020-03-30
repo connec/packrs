@@ -9,17 +9,17 @@ use crate::span::Span;
 /// The struct returned from [`crate::any`].
 pub struct Any;
 
-impl<'i> Parser<'i> for Any {
-    type Value = &'i str;
+impl Parser for Any {
+    type Value = char;
     type Error = UnexpectedEndOfInput;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let actual = input
             .chars()
             .next()
             .ok_or_else(|| Span::new(0..0, UnexpectedEndOfInput))?;
         let len = actual.len_utf8();
-        Ok(Span::new(0..len, &input[0..len]))
+        Ok(Span::new(0..len, actual))
     }
 }
 
@@ -35,17 +35,17 @@ mod tests {
 
     #[test]
     fn match_ascii() {
-        assert_eq!(Any.parse("hello"), Ok(Span::new(0..1, "h")));
+        assert_eq!(Any.parse("hello"), Ok(Span::new(0..1, 'h')));
     }
 
     #[test]
     fn match_utf8() {
-        assert_eq!(Any.parse("💩"), Ok(Span::new(0..4, "💩")));
+        assert_eq!(Any.parse("💩"), Ok(Span::new(0..4, '💩')));
     }
 
     #[test]
     fn match_grapheme() {
-        assert_eq!(Any.parse("नि"), Ok(Span::new(0..3, "न")));
+        assert_eq!(Any.parse("नि"), Ok(Span::new(0..3, 'न')));
     }
 
     #[test]
@@ -60,13 +60,7 @@ mod tests {
             assert_eq!(result, Err(Span::new(0..0, UnexpectedEndOfInput)));
         } else {
             let first_char = input.chars().next().unwrap();
-            assert_eq!(
-                result,
-                Ok(Span::new(
-                    0..first_char.len_utf8(),
-                    &format!("{}", first_char)[..]
-                ))
-            );
+            assert_eq!(result, Ok(Span::new(0..first_char.len_utf8(), first_char)));
         }
     }
 }

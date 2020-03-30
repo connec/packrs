@@ -10,11 +10,11 @@ use crate::span::Span;
 /// The struct returned from [`crate::nothing`].
 pub struct Nothing<E>(pub(crate) PhantomData<E>);
 
-impl<'i, E> Parser<'i> for Nothing<E> {
+impl<E> Parser for Nothing<E> {
     type Value = ();
     type Error = E;
 
-    fn parse(&self, _input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, _input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         Ok(Span::new(0..0, ()))
     }
 }

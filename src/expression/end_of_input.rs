@@ -9,11 +9,11 @@ use crate::span::Span;
 /// The struct returned from [`crate::end_of_input`].
 pub struct EndOfInput;
 
-impl<'i> Parser<'i> for EndOfInput {
+impl Parser for EndOfInput {
     type Value = ();
     type Error = ExpectedEndOfInput;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         if input.is_empty() {
             Ok(Span::new(0..0, ()))
         } else {

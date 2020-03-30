@@ -10,14 +10,14 @@ use super::ParseResultExt;
 /// The struct returned from [`crate::Parser::repeat`].
 pub struct Repeat<P>(pub(crate) P);
 
-impl<'i, P> Parser<'i> for Repeat<P>
+impl<P> Parser for Repeat<P>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     type Value = Vec<Span<P::Value>>;
     type Error = P::Error;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let value = self.0.parse(input)?;
         let mut end = value.end();
         let mut values = vec![value];

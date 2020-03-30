@@ -12,14 +12,14 @@ use super::ParseResultExt;
 /// The struct returned from [`crate::Parser::maybe_repeat`].
 pub struct MaybeRepeat<P, E>(pub(crate) P, pub(crate) PhantomData<E>);
 
-impl<'i, P, E> Parser<'i> for MaybeRepeat<P, E>
+impl<P, E> Parser for MaybeRepeat<P, E>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     type Value = Vec<Span<P::Value>>;
     type Error = E;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut end = 0;
         let mut values = Vec::new();
 

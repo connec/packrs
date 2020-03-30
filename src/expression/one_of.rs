@@ -10,14 +10,14 @@ use crate::span::Span;
 /// The struct returned from [`crate::one_of`].
 pub struct OneOf<P>(pub(crate) Vec<P>);
 
-impl<'i, P> Parser<'i> for OneOf<P>
+impl<P> Parser for OneOf<P>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     type Value = P::Value;
     type Error = Vec<Span<P::Error>>;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut start = usize::max_value();
         let mut end = 0;
         let mut errors = Vec::new();

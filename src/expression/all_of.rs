@@ -10,14 +10,14 @@ use super::ParseResultExt;
 /// The struct returned from [`crate::all_of`].
 pub struct AllOf<P>(pub(crate) Vec<P>);
 
-impl<'i, P> Parser<'i> for AllOf<P>
+impl<P> Parser for AllOf<P>
 where
-    P: Parser<'i>,
+    P: Parser,
 {
     type Value = Vec<Span<P::Value>>;
     type Error = P::Error;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut start = 0;
         let mut end = 0;
         let mut values = Vec::with_capacity(self.0.len());

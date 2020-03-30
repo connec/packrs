@@ -9,11 +9,11 @@ use crate::span::Span;
 /// The struct returned from [`crate::chr`].
 pub struct Chr(pub(crate) char);
 
-impl<'i> Parser<'i> for Chr {
-    type Value = &'i str;
+impl Parser for Chr {
+    type Value = char;
     type Error = ExpectedChar;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let actual = input
             .chars()
             .next()
@@ -22,7 +22,7 @@ impl<'i> Parser<'i> for Chr {
         if actual != self.0 {
             Err(Span::new(0..len, ExpectedChar(self.0)))
         } else {
-            Ok(Span::new(0..len, &input[0..len]))
+            Ok(Span::new(0..len, actual))
         }
     }
 }
@@ -39,17 +39,17 @@ mod tests {
 
     #[test]
     fn match_ascii() {
-        assert_eq!(Chr('h').parse("hello"), Ok(Span::new(0..1, "h")));
+        assert_eq!(Chr('h').parse("hello"), Ok(Span::new(0..1, 'h')));
     }
 
     #[test]
     fn match_utf8() {
-        assert_eq!(Chr('💩').parse("💩"), Ok(Span::new(0..4, "💩")));
+        assert_eq!(Chr('💩').parse("💩"), Ok(Span::new(0..4, '💩')));
     }
 
     #[test]
     fn match_grapheme() {
-        assert_eq!(Chr('न').parse("नि"), Ok(Span::new(0..3, "न")));
+        assert_eq!(Chr('न').parse("नि"), Ok(Span::new(0..3, 'न')));
     }
 
     #[test]
@@ -77,10 +77,7 @@ mod tests {
     fn parse(char: char, input: String) {
         let result = Chr(char).parse(&input);
         if input.starts_with(char) {
-            assert_eq!(
-                result,
-                Ok(Span::new(0..char.len_utf8(), &format!("{}", char)[..]))
-            );
+            assert_eq!(result, Ok(Span::new(0..char.len_utf8(), char)));
         } else if input.is_empty() {
             assert_eq!(result, Err(Span::new(0..0, ExpectedChar(char))));
         } else {

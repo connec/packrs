@@ -8,15 +8,15 @@ use crate::span::Span;
 /// The struct returned from [`crate::Parser::map_err`].
 pub struct MapErr<P, F>(pub(crate) P, pub(crate) F);
 
-impl<'i, P, F, U> Parser<'i> for MapErr<P, F>
+impl<P, F, U> Parser for MapErr<P, F>
 where
-    P: Parser<'i>,
+    P: Parser,
     F: Fn(P::Error) -> U,
 {
     type Value = P::Value;
     type Error = U;
 
-    fn parse(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map_err(|value| value.map(&self.1))
     }
 }
