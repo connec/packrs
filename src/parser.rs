@@ -5,8 +5,6 @@ use crate::error::ExpectedEndOfInput;
 use crate::expression::*;
 use crate::span::Span;
 
-type BoxedFn<I, O> = Box<dyn Fn(I) -> O>;
-
 /// Create a parser that will evaluate the given parsers in order against an input.
 ///
 /// If all of the given parsers can be evaluated successfully, the result will be `Ok` with a `Vec`
@@ -511,7 +509,8 @@ pub trait Parser {
     /// This is paricularly useful for processing the results of [`all_of`](crate::all_of),
     /// [`maybe_repeat`](Parser::maybe_repeat), [`one_of`](crate::one_of), and
     /// [`repeat`](Parser::repeat).
-    fn collect<C, I>(self) -> Map<Self, BoxedFn<Self::Value, C>>
+    #[allow(clippy::type_complexity)]
+    fn collect<C, I>(self) -> Map<Self, Box<dyn Fn(Self::Value) -> C>>
     where
         Self: Sized,
         Self::Value: IntoIterator<Item = Span<I>>,
