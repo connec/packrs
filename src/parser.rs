@@ -522,9 +522,9 @@ pub trait Parser {
     ///
     /// This is particularly useful when constructing `AllOf` or `OneOf` with different (but
     /// compatible) parsers.
-    fn boxed<'p>(self) -> Box<dyn Parser<Value = Self::Value, Error = Self::Error> + 'p>
+    fn boxed<'p>(self) -> Box<dyn Parser<Value = Self::Value, Error = Self::Error> + Sync + 'p>
     where
-        Self: Sized + 'p,
+        Self: Sized + Sync + 'p,
     {
         Box::new(self)
     }
