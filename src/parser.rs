@@ -509,14 +509,13 @@ pub trait Parser {
     /// This is paricularly useful for processing the results of [`all_of`](crate::all_of),
     /// [`maybe_repeat`](Parser::maybe_repeat), [`one_of`](crate::one_of), and
     /// [`repeat`](Parser::repeat).
-    #[allow(clippy::type_complexity)]
-    fn collect<C, I>(self) -> Map<Self, Box<dyn Fn(Self::Value) -> C>>
+    fn collect<C, I>(self) -> Map<Self, fn(Self::Value) -> C>
     where
         Self: Sized,
         Self::Value: IntoIterator<Item = Span<I>>,
         C: FromIterator<I>,
     {
-        self.map(Box::new(|v| v.into_iter().map(|i| i.take()).collect()))
+        self.map(|v| v.into_iter().map(|i| i.take()).collect())
     }
 
     /// Turn a parser into a boxed trait object.
