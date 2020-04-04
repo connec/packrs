@@ -3,7 +3,6 @@
 mod all_of;
 mod any;
 mod check;
-mod chr;
 mod end_of_input;
 mod join;
 mod map;
@@ -14,14 +13,13 @@ mod nothing;
 mod one_of;
 mod reject;
 mod repeat;
-mod string;
+mod str;
 
 use crate::Span;
 
 pub use all_of::*;
 pub use any::*;
 pub use check::*;
-pub use chr::*;
 pub use end_of_input::*;
 pub use join::*;
 pub use map::*;
@@ -32,7 +30,6 @@ pub use nothing::*;
 pub use one_of::*;
 pub use reject::*;
 pub use repeat::*;
-pub use string::*;
 
 #[cfg(test)]
 mod test_expr;
@@ -50,11 +47,11 @@ impl<V, E> ParseResultExt<V, E> for Result<Span<V>, Span<E>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::ExpectedChar;
+    use crate::error::ExpectedString;
     use crate::parser::Parser;
     use crate::span::Span;
 
-    use super::{AllOf, Chr, Map, MapErr, OneOf, ParseResultExt};
+    use super::{AllOf, Map, MapErr, OneOf, ParseResultExt};
 
     #[test]
     fn test_span_ext_result_ok_relative_to() {
@@ -91,17 +88,17 @@ mod tests {
 
         let num = MapErr(
             OneOf::<Box<dyn Parser<Value = _, Error = _>>>(vec![
-                Box::new(Map(Chr('1'), |_| Token::Num(1))),
-                Box::new(Map(Chr('2'), |_| Token::Num(2))),
+                Box::new(Map("1", |_| Token::Num(1))),
+                Box::new(Map("2", |_| Token::Num(2))),
             ]),
-            |_: Vec<Span<ExpectedChar>>| CalcError::InvalidNumber,
+            |_: Vec<Span<ExpectedString>>| CalcError::InvalidNumber,
         );
         let op = MapErr(
             OneOf::<Box<dyn Parser<Value = _, Error = _>>>(vec![
-                Box::new(Map(Chr('+'), |_| Token::OpAdd)),
-                Box::new(Map(Chr('-'), |_| Token::OpSub)),
+                Box::new(Map("+", |_| Token::OpAdd)),
+                Box::new(Map("-", |_| Token::OpSub)),
             ]),
-            |_: Vec<Span<ExpectedChar>>| CalcError::InvalidOperator,
+            |_: Vec<Span<ExpectedString>>| CalcError::InvalidOperator,
         );
         let add = Map(
             AllOf::<&dyn Parser<Value = _, Error = _>>(vec![&num, &op, &num]),

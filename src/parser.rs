@@ -17,13 +17,13 @@ use crate::span::Span;
 /// different parser types.
 ///
 /// ```
-/// use packrs::{Parser, Span, all_of, chr};
-/// use packrs::error::ExpectedChar;
+/// use packrs::{Parser, Span, all_of};
+/// use packrs::error::ExpectedString;
 ///
-/// let hello = all_of("hello".chars().map(chr).collect()).collect();
+/// let hello = all_of(vec!["hello", " ", "world"]).collect();
 ///
-/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
-/// assert_eq!(hello.parse("world"), Err(Span::new(0..1, ExpectedChar('h'))));
+/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..11, "hello world".to_string())));
+/// assert_eq!(hello.parse("world"), Err(Span::new(0..5, ExpectedString("hello"))));
 /// ```
 pub fn all_of<P>(parsers: Vec<P>) -> AllOf<P>
 where
@@ -41,11 +41,11 @@ where
 /// [`UnexpectedEndOfInput`](crate::expression::any::UnexpectedEndOfInput).
 ///
 /// ```
-/// use packrs::{Parser, Span, all_of, any, chr};
+/// use packrs::{Parser, Span, all_of, any};
 /// use packrs::error::UnexpectedEndOfInput;
 ///
 /// let first_word = all_of(vec![
-///     chr(' ')
+///     " "
 ///         .reject()
 ///         .map(|_| "".to_string())
 ///         .map_err(|_| UnexpectedEndOfInput)
@@ -61,27 +61,6 @@ where
 /// ```
 pub fn any() -> Any {
     Any
-}
-
-/// Create a parser that consumes a specific character.
-///
-/// When given an input that starts with the given character, the result will be `Ok` with a
-/// subslice of the input containing the character.
-///
-/// When given an input that does not start with the given character, the result will be an `Err`
-/// with [`ExpectedChar`](crate::expression::chr::ExpectedChar)`(char)`.
-///
-/// ```
-/// use packrs::{Parser, Span, all_of, chr};
-/// use packrs::error::ExpectedChar;
-///
-/// let hello = all_of("hello".chars().map(chr).collect()).collect();
-///
-/// assert_eq!(hello.parse("hello world"), Ok(Span::new(0..5, "hello".to_string())));
-/// assert_eq!(hello.parse("world, hello"), Err(Span::new(0..1, ExpectedChar('h'))));
-/// ```
-pub fn chr(char: char) -> Chr {
-    Chr(char)
 }
 
 /// Create a parser that matches at the end of an input.
@@ -151,8 +130,8 @@ pub fn nothing<E>() -> Nothing<E> {
 /// different parser types.
 ///
 /// ```
-/// use packrs::{Parser, Span, chr, one_of};
-/// use packrs::error::ExpectedChar;
+/// use packrs::{Parser, Span, one_of};
+/// use packrs::error::ExpectedString;
 ///
 /// #[derive(Debug, PartialEq)]
 /// enum Op {
@@ -163,19 +142,19 @@ pub fn nothing<E>() -> Nothing<E> {
 /// }
 ///
 /// let op = one_of(vec![
-///     chr('+').map(|_| Op::Add).boxed(),
-///     chr('-').map(|_| Op::Sub).boxed(),
-///     chr('*').map(|_| Op::Mul).boxed(),
-///     chr('/').map(|_| Op::Div).boxed(),
+///     "+".map(|_| Op::Add).boxed(),
+///     "-".map(|_| Op::Sub).boxed(),
+///     "*".map(|_| Op::Mul).boxed(),
+///     "/".map(|_| Op::Div).boxed(),
 /// ]);
 ///
 /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
 /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
 /// assert_eq!(op.parse("÷"), Err(Span::new(0..2, vec![
-///     Span::new(0..2, ExpectedChar('+')),
-///     Span::new(0..2, ExpectedChar('-')),
-///     Span::new(0..2, ExpectedChar('*')),
-///     Span::new(0..2, ExpectedChar('/')),
+///     Span::new(0..2, ExpectedString("+")),
+///     Span::new(0..2, ExpectedString("-")),
+///     Span::new(0..2, ExpectedString("*")),
+///     Span::new(0..2, ExpectedString("/")),
 /// ])));
 /// ```
 pub fn one_of<P>(parsers: Vec<P>) -> OneOf<P>
@@ -183,26 +162,6 @@ where
     P: Parser,
 {
     OneOf(parsers)
-}
-
-/// Create a parser that will match the given string at the beginning on an input.
-///
-/// When given an input that starts with the given string, the result will be `Ok` with a subslice
-/// of the input containing the matched string. When given an input that does not start with the
-/// given string, the result will be an `Err` with
-/// [`ExpectedString`](crate::expression::string::ExpectedString)`(string)`.
-///
-/// ```
-/// use packrs::{Parser, Span, string};
-/// use packrs::error::ExpectedString;
-///
-/// let check_hello = string("hello").check();
-///
-/// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
-/// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
-/// ```
-pub fn string(string: &str) -> String {
-    String(string)
 }
 
 /// A trait implemented by parsing expressions.
@@ -222,13 +181,13 @@ pub trait Parser {
     /// fails, the result will be an `Err` with the parse failure.
     ///
     /// ```
-    /// use packrs::{Parser, Span, string};
+    /// use packrs::{Parser, Span};
     /// use packrs::error::ExpectedString;
     ///
-    /// let check_hello = string("hello").check();
+    /// let check_hello = "hello".check();
     ///
     /// assert_eq!(check_hello.parse("hello world"), Ok(Span::new(0..0, ())));
-    /// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..1, ExpectedString("hello"))));
+    /// assert_eq!(check_hello.parse("world, hello"), Err(Span::new(0..5, ExpectedString("hello"))));
     /// ```
     fn check(self) -> Check<Self>
     where
@@ -287,20 +246,20 @@ pub trait Parser {
     /// values. If either parser fails, the result will be an `Err` with the parse failure.
     ///
     /// ```
-    /// use packrs::{Parser, Span, chr, string};
-    /// use packrs::error::ExpectedChar;
+    /// use packrs::{Parser, Span};
+    /// use packrs::error::ExpectedString;
     ///
-    /// let expr = chr('1').join(string("+1").maybe());
+    /// let expr = "1".join("+1".maybe());
     ///
     /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, (
-    ///     Span::new(0..1, '1'),
+    ///     Span::new(0..1, "1"),
     ///     Span::new(1..1, None)
     /// ))));
     /// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, (
-    ///     Span::new(0..1, '1'),
+    ///     Span::new(0..1, "1"),
     ///     Span::new(1..3, Some(Span::new(0..2, "+1"))),
     /// ))));
-    /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
+    /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedString("1"))));
     /// ```
     fn join<P>(self, other: P) -> Join<Self, P>
     where
@@ -317,8 +276,8 @@ pub trait Parser {
     /// parse failure.
     ///
     /// ```
-    /// use packrs::{Parser, Span, chr, one_of};
-    /// use packrs::error::ExpectedChar;
+    /// use packrs::{Parser, Span, one_of};
+    /// use packrs::error::ExpectedString;
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Op {
@@ -329,19 +288,19 @@ pub trait Parser {
     /// }
     ///
     /// let op = one_of(vec![
-    ///     chr('+').map(|_| Op::Add).boxed(),
-    ///     chr('-').map(|_| Op::Sub).boxed(),
-    ///     chr('*').map(|_| Op::Mul).boxed(),
-    ///     chr('/').map(|_| Op::Div).boxed(),
+    ///     "+".map(|_| Op::Add).boxed(),
+    ///     "-".map(|_| Op::Sub).boxed(),
+    ///     "*".map(|_| Op::Mul).boxed(),
+    ///     "/".map(|_| Op::Div).boxed(),
     /// ]);
     ///
     /// assert_eq!(op.parse("+"), Ok(Span::new(0..1, Op::Add)));
     /// assert_eq!(op.parse("/"), Ok(Span::new(0..1, Op::Div)));
     /// assert_eq!(op.parse("÷"), Err(Span::new(0..2, vec![
-    ///     Span::new(0..2, ExpectedChar('+')),
-    ///     Span::new(0..2, ExpectedChar('-')),
-    ///     Span::new(0..2, ExpectedChar('*')),
-    ///     Span::new(0..2, ExpectedChar('/')),
+    ///     Span::new(0..2, ExpectedString("+")),
+    ///     Span::new(0..2, ExpectedString("-")),
+    ///     Span::new(0..2, ExpectedString("*")),
+    ///     Span::new(0..2, ExpectedString("/")),
     /// ])));
     /// ```
     fn map<F, U>(self, transform: F) -> Map<Self, F>
@@ -358,8 +317,8 @@ pub trait Parser {
     /// parser fails, the result will be an `Err` with `transform(<parse failure>)`.
     ///
     /// ```
-    /// use packrs::{Parser, Span, chr, one_of};
-    /// use packrs::error::ExpectedChar;
+    /// use packrs::{Parser, Span, one_of};
+    /// use packrs::error::ExpectedString;
     ///
     /// #[derive(Debug, PartialEq)]
     /// enum Op {
@@ -373,10 +332,10 @@ pub trait Parser {
     /// struct InvalidOp;
     ///
     /// let op = one_of(vec![
-    ///     chr('+').map(|_| Op::Add).boxed(),
-    ///     chr('-').map(|_| Op::Sub).boxed(),
-    ///     chr('*').map(|_| Op::Mul).boxed(),
-    ///     chr('/').map(|_| Op::Div).boxed(),
+    ///     "+".map(|_| Op::Add).boxed(),
+    ///     "-".map(|_| Op::Sub).boxed(),
+    ///     "*".map(|_| Op::Mul).boxed(),
+    ///     "/".map(|_| Op::Div).boxed(),
     /// ])
     ///     .map_err(|_| InvalidOp);
     ///
@@ -399,25 +358,24 @@ pub trait Parser {
     /// parsed value will be `None`.
     ///
     /// ```
-    /// use packrs::{Parser, Span, all_of, chr, string};
-    /// use packrs::error::ExpectedChar;
+    /// use packrs::{Parser, Span, all_of};
+    /// use packrs::error::ExpectedString;
     ///
     /// let expr = all_of(vec![
-    ///     chr('1').map(|c| c.to_string()).boxed(),
-    ///     string("+1")
+    ///     "1".boxed(),
+    ///     "+1"
     ///         .maybe()
     ///         .map(|opt| match opt {
     ///             Some(span) => span.take(),
     ///             None => "",
     ///         })
-    ///         .map(|s| s.to_string())
     ///         .boxed()
     /// ])
     ///     .collect();
     ///
     /// assert_eq!(expr.parse("1"), Ok(Span::new(0..1, "1".to_string())));
     /// assert_eq!(expr.parse("1+1"), Ok(Span::new(0..3, "1+1".to_string())));
-    /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedChar('1'))));
+    /// assert_eq!(expr.parse("2+1"), Err(Span::new(0..1, ExpectedString("1"))));
     /// ```
     fn maybe<E>(self) -> Maybe<Self, E>
     where
@@ -433,9 +391,9 @@ pub trait Parser {
     /// fails the first evaluation, the parsed value will be `vec![]`.
     ///
     /// ```
-    /// use packrs::{Parser, Span, chr, one_of};
+    /// use packrs::{Parser, Span, one_of};
     ///
-    /// let binary = one_of(vec![chr('0'), chr('1')]).maybe_repeat::<()>().collect();
+    /// let binary = one_of(vec!["0", "1"]).maybe_repeat::<()>().collect();
     ///
     /// assert_eq!(binary.parse(""), Ok(Span::new(0..0, "".to_string())));
     /// assert_eq!(binary.parse("0101"), Ok(Span::new(0..4, "0101".to_string())));
@@ -454,12 +412,12 @@ pub trait Parser {
     /// the result will be `Ok(())`.
     ///
     /// ```
-    /// use packrs::{Parser, Span, all_of, any, chr};
+    /// use packrs::{Parser, Span, all_of, any};
     /// use packrs::error::UnexpectedEndOfInput;
     ///
     /// let first_word = all_of(vec![
-    ///     chr(' ').reject().map(|_| "".to_string()).map_err(|_| UnexpectedEndOfInput).boxed(),
-    ///     any().map(|char| char.to_string()).boxed(),
+    ///     " ".reject().map(|_| "".to_string()).map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///     any().map(|c| c.to_string()).boxed(),
     /// ])
     ///     .map(|mut v| v.pop().unwrap().take())
     ///     .repeat()
@@ -483,12 +441,12 @@ pub trait Parser {
     /// evaluations.
     ///
     /// ```
-    /// use packrs::{Parser, Span, all_of, any, chr};
+    /// use packrs::{Parser, Span, all_of, any};
     /// use packrs::error::UnexpectedEndOfInput;
     ///
     /// let first_word = all_of(vec![
-    ///     chr(' ').reject().map(|_| "".to_string()).map_err(|_| UnexpectedEndOfInput).boxed(),
-    ///     any().map(|char| char.to_string()).boxed(),
+    ///     " ".reject().map(|_| "".to_string()).map_err(|_| UnexpectedEndOfInput).boxed(),
+    ///     any().map(|c| c.to_string()).boxed(),
     /// ])
     ///     .map(|mut v| v.pop().unwrap().take())
     ///     .repeat()
