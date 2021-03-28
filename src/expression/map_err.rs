@@ -16,7 +16,7 @@ where
     type Value = P::Value;
     type Error = U;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.0.parse(input).map_err(|value| value.map(&self.1))
     }
 }

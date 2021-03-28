@@ -8,14 +8,14 @@ impl<'s> Parser for &'s str {
     type Value = Self;
     type Error = ExpectedString<'s>;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         if input.starts_with(*self) {
             Ok(Span::new(0..self.len(), *self))
         } else if input.is_empty() {
             Err(Span::new(0..0, ExpectedString(*self)))
         } else {
             let mut len = min(input.len(), self.len());
-            while let None = input.get(0..len) {
+            while input.get(0..len).is_none() {
                 len += 1;
             }
             Err(Span::new(0..len, ExpectedString(*self)))
@@ -83,7 +83,7 @@ mod tests {
             assert_eq!(result, Err(Span::new(0..0, ExpectedString(&string))));
         } else {
             let mut len = min(input.len(), string.len());
-            while let None = input.get(0..len) {
+            while input.get(0..len).is_none() {
                 len += 1;
             }
             assert_eq!(result, Err(Span::new(0..len, ExpectedString(&string))));

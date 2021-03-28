@@ -173,7 +173,7 @@ pub trait Parser {
     type Error;
 
     /// Parses a given input and returns the result.
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>>;
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>>;
 
     /// Creates a parser that will evaluate without consuming input or producing a value.
     ///
@@ -507,7 +507,7 @@ where
 
     type Error = P::Error;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         (*self).parse(input)
     }
 }
@@ -520,7 +520,7 @@ where
 
     type Error = P::Error;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         std::convert::AsRef::as_ref(self).parse(input)
     }
 }

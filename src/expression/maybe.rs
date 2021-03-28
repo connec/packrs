@@ -17,7 +17,7 @@ where
     type Value = Option<Span<P::Value>>;
     type Error = E;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         Ok(match self.0.parse(input) {
             Ok(value) => Span::new(value.start()..value.end(), Some(value)),
             Err(_) => Span::new(0..0, None),

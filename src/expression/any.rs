@@ -13,7 +13,7 @@ impl Parser for Any {
     type Value = char;
     type Error = UnexpectedEndOfInput;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let actual = input
             .chars()
             .next()

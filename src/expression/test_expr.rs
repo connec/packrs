@@ -82,7 +82,7 @@ impl Parser for TestExpr {
     type Value = TestValue;
     type Error = TestError;
 
-    fn parse<'i>(&self, _input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, _input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         self.config().calls.set(self.config().calls() + 1);
         match self {
             ParseMatch(config, max_calls) => {
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_match_limit() {
         let expr = TestExpr::ok_iters(32..53, u8::max_value() - 2);
-        while let Ok(_) = expr.parse("arbitrary") {}
+        while expr.parse("arbitrary").is_ok() {}
 
         assert_eq!(expr.config().calls(), u8::max_value() as usize - 1);
         assert_eq!(expr.parse("arbitrary"), Err(Span::new(0..0, TestError)));

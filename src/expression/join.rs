@@ -18,7 +18,7 @@ where
     type Value = (Span<P1::Value>, Span<P2::Value>);
     type Error = P1::Error;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let v1 = self.0.parse(input)?;
         let v2 = self.1.parse(&input[v1.end()..]).relative_to(v1.end())?;
 

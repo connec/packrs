@@ -14,7 +14,7 @@ impl<E> Parser for Nothing<E> {
     type Value = ();
     type Error = E;
 
-    fn parse<'i>(&self, _input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, _input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         Ok(Span::new(0..0, ()))
     }
 }

@@ -19,7 +19,7 @@ where
     type Value = Vec<Span<P::Value>>;
     type Error = E;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut end = 0;
         let mut values = Vec::new();
 

@@ -17,7 +17,7 @@ where
     type Value = P::Value;
     type Error = Vec<Span<P::Error>>;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         let mut start = usize::max_value();
         let mut end = 0;
         let mut errors = Vec::new();

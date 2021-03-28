@@ -13,7 +13,7 @@ impl Parser for EndOfInput {
     type Value = ();
     type Error = ExpectedEndOfInput;
 
-    fn parse<'i>(&self, input: &'i str) -> Result<Span<Self::Value>, Span<Self::Error>> {
+    fn parse(&self, input: &'_ str) -> Result<Span<Self::Value>, Span<Self::Error>> {
         if input.is_empty() {
             Ok(Span::new(0..0, ()))
         } else {
